@@ -1052,18 +1052,29 @@ class Engine{
   mkCh(){
     const c=this.c,s={};s.in=c.createGain();s.sh=c.createBiquadFilter();s.sh.type='lowshelf';s.sh.frequency.value=170;s.lp=c.createBiquadFilter();s.lp.type='lowpass';s.lp.frequency.value=20000;s.lp.Q.value=.5;
     s.duck=c.createGain();s.pan=c.createStereoPanner();s.vol=c.createGain();
-    s.in.connect(s.sh);s.sh.connect(s.lp);s.lp.connect(s.duck);s.duck.connect(s.pan);s.pan.connect(s.vol);s.mix=-1;return s;
+    // 채널마다 거는 효과: 얇게(하이패스)·찌그러짐·거칠게·넓게(코러스)·울림·메아리 보내기
+    s.hp=c.createBiquadFilter();s.hp.type='highpass';s.hp.frequency.value=10;s.hp.Q.value=.6;s.drv=c.createWaveShaper();s.drv.oversample='2x';s.dg=c.createGain();s.cr=c.createWaveShaper();
+    s.chD=c.createDelay(.06);s.chD.delayTime.value=.02;s.chL=c.createOscillator();s.chL.frequency.value=.7;const lg=c.createGain();lg.gain.value=.005;s.chL.connect(lg);lg.connect(s.chD.delayTime);s.chL.start();s.chW=c.createGain();s.chW.gain.value=0;
+    s.rs=c.createGain();s.rs.gain.value=0;s.ds=c.createGain();s.ds.gain.value=0;s.fxk='';
+    s.in.connect(s.sh);s.sh.connect(s.lp);s.lp.connect(s.hp);s.hp.connect(s.drv);s.drv.connect(s.dg);s.dg.connect(s.cr);s.cr.connect(s.duck);s.duck.connect(s.pan);s.duck.connect(s.chD);s.chD.connect(s.chW);s.chW.connect(s.pan);s.pan.connect(s.vol);
+    s.vol.connect(s.rs);s.rs.connect(this.revIn);s.vol.connect(s.ds);s.ds.connect(this.dlIn);s.mix=-1;return s;
   }
   sync(song,extra){
     this.song=song;const list=extra?song.channels.concat(extra):song.channels,anySolo=song.channels.some(c=>c.solo),seen=new Set();
     for(const ch of list){
       let s=this.ch.get(ch.id);if(!s){s=this.mkCh();this.ch.set(ch.id,s);}
       seen.add(ch.id);
-      const mix=clamp(ch.mix|0,0,8);if(s.mix!==mix){try{s.vol.disconnect();}catch(e){}s.vol.connect(this.strips[mix].in);s.mix=mix;}
+      const mix=clamp(ch.mix|0,0,8);if(s.mix!==mix){if(s.mix>=0){try{s.vol.disconnect(this.strips[s.mix].in);}catch(e){}}s.vol.connect(this.strips[mix].in);s.mix=mix;}
       const on=!ch.mute&&(!anySolo||ch.solo||ch.pv);
       this.set(s.vol.gain,on?ch.vol*.75:0);this.set(s.pan.pan,ch.pan);this.set(s.sh.gain,ch.thick/100*8);this.set(s.lp.frequency,ch.cut>=100?20000:150*Math.pow(120,ch.cut/100));this.set(s.lp.Q,.5+ch.res/100*14);s.pump=ch.pump/100;
+      const fk=[ch.fxr,ch.fxd,ch.fxdrv,ch.fxcr,ch.fxhp,ch.fxch].join();
+      if(s.fxk!==fk){s.fxk=fk;const dv=(ch.fxdrv||0)/100,cr=(ch.fxcr||0)/100,r=(ch.fxr||0)/100,dl=(ch.fxd||0)/100;
+        if(dv>0){const k=1+dv*22;s.drv.curve=driveCurve(k);this.set(s.dg.gain,1/Math.sqrt(k));}else{s.drv.curve=null;this.set(s.dg.gain,1);}
+        s.cr.curve=cr>0?crushCurve(Math.pow(2,7-cr*5.5)):null;
+        this.set(s.hp.frequency,ch.fxhp>0?30*Math.pow(80,ch.fxhp/100):10);this.set(s.chW.gain,(ch.fxch||0)/100*.85);
+        this.set(s.rs.gain,r*r*1.3);this.set(s.ds.gain,dl*dl*.9);}
     }
-    for(const [id,s] of this.ch)if(!seen.has(id)){try{s.vol.disconnect();}catch(e){}this.ch.delete(id);}
+    for(const [id,s] of this.ch)if(!seen.has(id)){try{s.vol.disconnect();s.chL.stop();}catch(e){}this.ch.delete(id);}
     for(let i=0;i<9;i++)this.applyMix(i,song.mixer[i]);
     this.set(this.out.gain,song.mvol*song.mvol*1.5625*.8);
     this.set(this.dl.delayTime,clamp(60/song.bpm*.75,.05,1.9));
@@ -1093,7 +1104,7 @@ class Engine{
     if(o.pan){const p=c.createStereoPanner();p.pan.value=clamp(o.pan,-1,1);p.connect(S.in);dest=p;}
     const m=midi+ch.oct*12+ch.semi+(ch.fine+ch.pk+(o.fine||0))/100+(60-ch.root)+(hit||ch.mainp===false?0:this.song.mpitch),th=ch.thick/100;
     vel=1-(1-vel)*ch.velsen/100;
-    const x={t,dur,vel,dest,V,relM:Math.pow(4,(ch.rel-50)/50),atk:ch.atk/100*1.2,vib:ch.vib,glide:ch.glide/1000,sgate:ch.sgate,sst:ch.sst||0,sen:ch.sen==null?100:ch.sen,from:o.from!=null?o.from+(m-midi):null};
+    const x={t,dur,vel,dest,V,relM:Math.pow(4,(ch.rel-50)/50),atk:ch.atk/100*1.2,vib:ch.vib,glide:ch.glide/1000,sgate:ch.sgate,sst:ch.sst||0,sen:ch.sen==null?100:ch.sen,srev:!!ch.srev,from:o.from!=null?o.from+(m-midi):null};
     if(hit){this.vHit(d,m,x);if(d.duck)this.duckAt(t);return V;}
     const n=th<.2?1:th<.65?3:5,offs=n===1?[0]:n===3?[-1,0,1]:[-1,-.5,0,.5,1],sp=th*24;
     for(let i=0;i<n;i++){
@@ -1154,12 +1165,13 @@ class Engine{
   }
   vBuf(d,m,x){
     const c=this.c,t=x.t,root=d.e==='p'?clamp(Math.round(m/2)*2,20,108):d.e==='k'?clamp(Math.round(m),14,110):(d.root||60),B=getBuf(d,root);if(!B)return;
-    const src=c.createBufferSource();src.buffer=B.buf;const rate=Math.pow(2,(m-root)/12+(x.cents||0)/1200)*B.corr;
+    const rv=d.e==='s'&&x.srev;if(rv&&!d.rbuf){const b=B.buf,r=c.createBuffer(b.numberOfChannels,b.length,b.sampleRate);for(let k=0;k<b.numberOfChannels;k++){const a=b.getChannelData(k),o=r.getChannelData(k);for(let i=0,n=a.length;i<n;i++)o[i]=a[n-1-i];}d.rbuf=r;}
+    const src=c.createBufferSource();src.buffer=rv?d.rbuf:B.buf;const rate=Math.pow(2,(m-root)/12+(x.cents||0)/1200)*B.corr;
     if(x.from!=null){src.playbackRate.setValueAtTime(rate*Math.pow(2,(x.from-m)/12),t);src.playbackRate.exponentialRampToValueAtTime(rate,t+Math.max(.01,x.glide));}else src.playbackRate.value=rate;
     const lg=src.detune?this.lfo(d,x):null;if(lg)lg.connect(src.detune);
     const shot=d.e==='s'&&(x.sgate===2||(x.sgate!==1&&d.shot)),lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=d.e==='s'?20000:1200+x.vel*x.vel*17000;lp.Q.value=.5;
     let out=lp;src.connect(lp);
-    const trim=d.e==='s'&&(x.sst>0||x.sen<100),bd=B.buf.duration,t0=trim?bd*clamp(x.sst,0,99)/100:0,tl=trim?Math.max(.01,bd*clamp(x.sen,1,100)/100-t0):0;
+    const trim=d.e==='s'&&(x.sst>0||x.sen<100),bd=B.buf.duration,tl=trim?Math.max(.01,bd*(clamp(x.sen,1,100)-clamp(x.sst,0,99))/100):0,t0=trim?(rv?bd*(100-clamp(x.sen,1,100))/100:bd*clamp(x.sst,0,99)/100):0;
     if(trim){const tg=c.createGain(),real=tl/rate,f=Math.min(.012,real/3);tg.gain.setValueAtTime(1,t);tg.gain.setValueAtTime(1,t+real-f);tg.gain.linearRampToValueAtTime(0,t+real);lp.connect(tg);out=tg;}
     if(shot){const g=c.createGain();g.gain.value=x.vel*(d.g||.9)*(x.ug||1);out.connect(g);g.connect(x.dest);(x.V.shots||(x.V.shots=[])).push(src);}
     else{out.connect(this.amp(x,[.002,.1,1,d.rel||.15],d.g||.8));x.V.srcs.push(src);}
@@ -1202,7 +1214,7 @@ let song=null,uidN=1;
 const nid=()=>(uidN++).toString(36)+Math.random().toString(36).slice(2,6);
 const SAMPLES={}; // id → {name,u8} 불러온 소리 파일 원본
 const CHDEF={vol:.8,pan:0,mute:false,solo:false,mix:0,oct:0,semi:0,fine:0,thick:0,cut:100,res:0,atk:0,rel:50,glide:0,vib:0,strum:0,pump:0,
-  pk:0,prange:2,mono:false,maxp:0,gate:100,shift:0,swg:100,velsen:100,kpan:0,cutg:0,cutby:0,root:60,mainp:true,sgate:0,sst:0,sen:100,
+  pk:0,prange:2,mono:false,maxp:0,gate:100,shift:0,swg:100,velsen:100,kpan:0,cutg:0,cutby:0,root:60,mainp:true,sgate:0,sst:0,sen:100,fxr:0,fxd:0,fxdrv:0,fxcr:0,fxhp:0,fxch:0,srev:false,
   arp:0,arpt:1,arpg:80,arpr:1,arprep:1,arpch:'auto',echo:0,echof:60,echot:3,echop:0,echopi:0,echopp:false};
 const PV=Object.assign({id:'__pv',pv:1,inst:'grand'},CHDEF);
 
@@ -1505,6 +1517,39 @@ function sl(label,obj,key,min,max,step,fmt,tip,views){
   inp.addEventListener('input',()=>{obj[key]=+inp.value;out.textContent=fmt(obj[key]);changed(...(views||[]));});
   return h('label',{class:'sl','data-tip':tip},h('span',{text:label}),inp,out);
 }
+/* 효과: 한 번 누르면 걸리는 묶음 + 직접 조절하는 슬라이더 */
+const FXZERO={cut:100,res:0,fxr:0,fxd:0,fxdrv:0,fxcr:0,fxhp:0,fxch:0,srev:false,semi:0};
+const FXSET=[
+  ['먹먹하게',{cut:34},'이불 속에서 들리는 것처럼 먹먹하게'],
+  ['울리게',{fxr:55},'넓은 방에서 울리는 것처럼'],
+  ['큰 동굴',{fxr:88,cut:72},'아주 크게, 오래 울려요'],
+  ['메아리',{fxd:55},'박자에 맞춰 소리가 되돌아와요'],
+  ['물속',{cut:22,res:38,fxr:42},'물속에서 듣는 것처럼'],
+  ['전화기',{fxhp:62,cut:56,fxdrv:22},'옛날 전화기·라디오처럼 얇게'],
+  ['찌그러뜨리기',{fxdrv:62},'거칠게 깨지는 소리 (펑크 베이스에 좋아요)'],
+  ['8비트 게임기',{fxcr:62},'옛날 게임기처럼 자글자글하게'],
+  ['넓게 퍼지게',{fxch:65},'소리가 양옆으로 넓게 퍼져요'],
+  ['로파이',{cut:50,fxcr:24,fxch:32},'낡은 테이프처럼 따뜻하고 흐릿하게'],
+  ['느리고 낮게 + 울림',{semi:-4,fxr:60,cut:76},'슬로우드 + 리버브: 낮고 느리게, 울리게'],
+  ['빠르고 높게',{semi:4},'스피드 업: 높고 빠르게'],
+  ['꿈속',{fxr:70,fxd:35,fxch:45,cut:68},'멀리서 아련하게 들려요'],
+  ['터널 속 스피커',{fxdrv:35,fxr:50,fxhp:30},'멀리 있는 큰 스피커처럼'],
+];
+function fxBox(ch,d){
+  const smp=d&&d.e==='s',isOn=p=>Object.keys(p).every(k=>ch[k]===p[k]);
+  const play=()=>{if(T.playing||HEAR)return;ensureAudio();E.sync(song,[PV]);E.note(ch,smp?(ch.root||60):d&&d.e!=='h'&&lowInst(d)?36:60,AC.currentTime+.03,smp?Math.min(3,d.buf?d.buf.duration:1):.5,.85,{});};
+  const chips=h('div',{class:'chips'},FXSET.map(([name,p,tip])=>h('button',{class:'chipb'+(isOn(p)&&Object.keys(p).some(k=>p[k]!==FXZERO[k])?' on':''),text:name,'data-tip':tip+'. 누르면 걸고 바로 들려줘요',onclick:()=>{snap();Object.assign(ch,FXZERO,{srev:ch.srev},p);changed('panel','rack');play();}})));
+  if(smp)chips.append(h('button',{class:'chipb'+(ch.srev?' on':''),text:'거꾸로','data-tip':'소리를 뒤에서부터 거꾸로 틀어요',onclick:()=>{snap();ch.srev=!ch.srev;changed('panel');play();}}));
+  const s=(l,k,tip)=>sl(l,ch,k,0,100,1,pct,tip);
+  return h('fieldset',null,h('legend',{text:'효과 (눌러서 걸기)'}),chips,
+    s('울림','fxr','울림(리버브): 넓은 공간에서 울리는 느낌'),
+    s('메아리','fxd','메아리(딜레이): 박자에 맞춰 소리가 되돌아와요'),
+    s('찌그러짐','fxdrv','찌그러짐(디스토션): 올릴수록 거칠게 깨져요'),
+    s('거칠게','fxcr','거칠게(비트크러시): 옛날 게임기처럼 자글자글하게'),
+    s('얇게','fxhp','얇게: 낮은 소리를 깎아 전화기처럼 만들어요'),
+    s('넓게','fxch','넓게(코러스): 소리가 양옆으로 퍼져요'),
+    h('div',{class:'acts'},h('small',{text:'먹먹함은 위의 "밝기"를 낮추면 돼요'}),h('button',{text:'효과 모두 끄기',onclick:()=>{snap();Object.assign(ch,FXZERO);changed('panel','rack');}})));
+}
 let HEAR=null;
 /* 불러온 소리 파일의 길이 조절: 파형 위에서 쓸 구간(시작~끝)을 정한다 */
 function trimBox(ch,d){
@@ -1595,6 +1640,8 @@ function wipeAll(){ // 전체 지우기: 채널·패턴·음·플레이리스트
 function restoreBackup(){try{const o=JSON.parse(localStorage.getItem(BKKEY));if(!o||!o.song)throw 0;snap();setSong(o.song);restoreSamples();toast('"'+song.name+'" 을 되살렸어요');}catch(e){toast('되살릴 곡이 없어요');}}
 function loadTemplate(k){snap();const was=T.playing;stop(true);setSong(TEMPLATES[k][1]());toast('"'+TEMPLATES[k][0]+'" 틀을 불러왔어요 (↶ 로 되돌릴 수 있어요)');if(was)play();}
 function setSong(s,fromUndo){
+  if(s&&s.channels)for(const c of s.channels)for(const k in CHDEF)if(c[k]===undefined)c[k]=CHDEF[k]; // 예전에 저장한 곡에 새 설정의 기본값 채우기
+
   const was=T.playing;if(was&&fromUndo){}else if(was)stop();
   if(!fromUndo&&song&&song.sounds&&song.sounds.length&&!(s.sounds&&s.sounds.length))s.sounds=song.sounds; // 내가 만든 소리는 새 곡에도 가져간다
   song=fixSong(s);regSounds();R.sel.clear();PL.sel.clear();MX.sel=clamp(MX.sel,0,8);if(!fromUndo){T.cue=0;T.songCue=0;}
@@ -1726,6 +1773,7 @@ function renderPanel(){
       !hit&&sl('어택',ch,'atk',0,100,1,pct,'어택: 올리면 소리가 천천히 부풀며 시작해요'),
       sl('여운',ch,'rel',0,100,1,v=>'×'+Math.pow(4,(v-50)/50).toFixed(2),'여운: 음이 끝난 뒤 사라지는 시간 (드럼은 울림 길이)'),
       !hit&&sl('떨림',ch,'vib',0,60,1,v=>v+'c','떨림(비브라토): 음 높이를 가늘게 흔들어요')),
+    fxBox(ch,d),
     h('fieldset',null,h('legend',{text:'연주 방식'}),
       !hit&&sl('글라이드',ch,'glide',0,400,5,v=>v+'ms','글라이드: 앞 음에서 다음 음으로 미끄러지듯 넘어가요 (808 베이스에 잘 어울려요)'),
       sl('스트럼',ch,'strum',0,80,1,v=>v+'ms','스트럼: 화음의 음들을 기타 치듯 살짝씩 늦춰 울려요'),
