@@ -6,6 +6,7 @@
 <title>qi 스튜디오</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -392,75 +393,58 @@ body.lowfx .menu,body.lowfx .sheet,body.lowfx #toast,body.lowfx #guide,body.lowf
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}.spot{animation:none}}
 
-/* ── 단순한 화면: 평평한 면, 얇은 선, 강조색 하나. 색은 채널 구분에만 쓴다 ── */
-:root{--void:#15171c;--well:#181b20;--sf:#1f232a;--sf2:#2a2f38;--ln:#363c47;--neon:#ffb224;--neon2:#ffb224;--disp:var(--body)}
-*,*::before,*::after{box-shadow:none!important;text-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
-#stage{background:var(--void)}
-#glow{display:none}
-.glass,#drawer,.menu,.sheet,#guide,#toast,.chwin .sheet{background:var(--sf);border:1px solid var(--ln)}
-.menu,.sheet,#guide,#toast,#drawer{box-shadow:0 12px 32px rgba(0,0,0,.5)!important}
-.modal{background:rgba(0,0,0,.5)}
-.modal.chwin{background:none}
-button{background:var(--sf2);border-color:var(--ln);border-radius:8px;transform:none!important}
-button:hover{filter:brightness(1.12)}
-select{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23b9c4d6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 10px center/10px var(--sf2);border-color:var(--ln);border-radius:8px}
-input[type=text],input[type=search],input[type=number]{background:#14161a;border-color:var(--ln);border-radius:8px}
-input[type=range]::-webkit-slider-thumb{background:#e3e6ec}
-input[type=range]::-moz-range-thumb{background:#e3e6ec}
-#top,#tabs,#sndbar,#ctx,main,#hint,#chPanel,#fxPanel,#patPanel,#drawer,.menu,#guide{border-radius:12px}
-.sheet{border-radius:14px}
-.brand b{font:700 22px/1 var(--body);letter-spacing:0}
-#brandB{transform:none!important}
-.brand b i,.brand b i+i{color:var(--ink);-webkit-text-stroke:0;filter:none}
-.seg2,.seg,.lcd,fieldset,.fm,canvas.mini{background:rgba(0,0,0,.24)}
-.seg2,.seg{border-radius:9px}
-.seg2 button,.seg button{border-radius:7px}
-.seg2 button.on,.seg2 button[data-m=song].on,.seg button.on,#sndbar button.on,.chipb.on,#bList button.on,.tile.on,.pri{color:#201400;background:var(--acc)}
-#sndbar button,#tabs button,#tabs .thumb{border-radius:8px}
-.rb{background:var(--sf2)}
-.rb.play,.rb.play.on,.rb.met.on{background:var(--acc)}
-.rb.rec.on{background:#e5484d}
-#iBpm{color:var(--ink)}
-#posText{color:var(--dim)}
-#tabs .thumb{background:var(--sf2);transition:transform .15s,width .15s}
-main{background:var(--well);border:1px solid var(--ln)}
-main::after{display:none}
-.kd::before{display:none}
-.kd i{background:#434a57}
-.fader i{background:#cdd2db}
-.headglass::before{background:var(--sf);border-right:1px solid var(--ln)}
-.row.sel .rhead{background:rgba(255,178,36,.09)}
-.lightsRow,#plRuler,#plRuler span.corner,#rollBar,#listBar{background:var(--sf)}
-.led{background:#434a57}
-.led.on{background:#6fcf5f}
-.led.solo{background:var(--acc)}
-.chname{background:var(--sf2);border-color:var(--ln)}
-.row.sel .chname{background:#353b46;border-color:var(--c)}
-.st{background:#2b303a;border-radius:5px}
-.st.b{background:#383e4a}
-.st.on{background:var(--c)}
-.lt.on{background:var(--acc)}
-.clip{background:var(--c);border-radius:6px}
-.clip.sel{background:#e5484d}
-#plHead{background:var(--acc)}
-.strip{background:var(--sf);border-color:var(--ln);border-radius:10px}
-.strip.master{background:var(--sf2)}
-.strip.on{border-color:var(--acc)}
-.pat.on{background:var(--sf2);border-color:var(--acc)}
-#bCats button.on{background:var(--sf2)}
-.tog.on{background:rgba(255,178,36,.16)}
-.wk{background:#eef0f4}
-.wk.on{background:var(--acc)}
-.bk{background:#15171c}
-.bk.on{background:#c77f00}
-.sheet h2{font:600 17px var(--body);color:var(--ink)}
-.marq{background:rgba(255,178,36,.16);border:1px solid var(--acc)}
+/* ── 차분한 색: 유리와 입체는 그대로 두고, 무지개 조명·네온을 걷어낸다.
+      면은 회청색 한 계열, 강조는 호박색 하나, 채널 색은 채도를 낮춘다 ── */
+:root{--neon:#93a7c2;--neon2:#93a7c2;--acc:#f0b247;--acc2:#9db6d6}
+#stage{background:
+  radial-gradient(70vmax 50vmax at 12% -10%,rgba(150,172,205,.26),transparent 62%),
+  radial-gradient(60vmax 48vmax at 100% 110%,rgba(120,140,175,.2),transparent 62%),
+  #0b0e14}
+#glow{background:radial-gradient(80vmax 56vmax at 30% -10%,rgba(190,208,235,.22),transparent 64%)}
+.glass{border-color:rgba(255,255,255,.14);box-shadow:var(--rim),var(--lift)}
+#drawer,.chwin .sheet{border-color:rgba(255,255,255,.16);box-shadow:var(--rim),0 30px 60px -12px rgba(0,0,0,.85)}
+.brand b i,.brand b i+i{color:var(--ink);-webkit-text-stroke:0;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.seg2 button.on,.seg2 button[data-m=song].on{color:#2a1a00;background:linear-gradient(180deg,#ffe9b5,#f0b247 55%,#cf8f1e);box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 2px 6px rgba(0,0,0,.5)}
+.seg button.on,.chipb.on,#bList button.on,.tile.on,.pri{background:linear-gradient(180deg,#ffe9b5,#f0b247 55%,#cf8f1e)}
+.seg button.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 2px 6px rgba(0,0,0,.5)}
+.chipb.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 2px 5px rgba(0,0,0,.4)}
+#bList button.on,.tile.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 3px 0 #86580c,0 6px 12px rgba(0,0,0,.4)}
+#sndbar button.on{color:var(--ink);background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.12));box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 4px 12px rgba(0,0,0,.4)}
+.rb.play{background:radial-gradient(circle at 50% 16%,#fff3cf 0%,#f0b247 50%,#bd7f14 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -3px 5px rgba(120,60,0,.45),0 4px 0 #86580c,0 9px 16px rgba(0,0,0,.5)}
+.rb.play.on{box-shadow:inset 0 2px 5px rgba(120,60,0,.55),0 1px 0 #86580c,0 3px 6px rgba(0,0,0,.5)}
+.rb.met.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 1px 0 #86580c,0 3px 6px rgba(0,0,0,.5)}
+.rb.rec.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 1px 0 #7a0f30,0 3px 6px rgba(0,0,0,.5)}
+#iBpm{color:var(--ink);text-shadow:none}
+#posText{color:#c3cddc;text-shadow:none}
+#tabs .thumb{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 4px 12px rgba(0,0,0,.4)}
+main::after{box-shadow:inset 0 4px 16px rgba(0,0,0,.75),inset 0 0 0 1px rgba(255,255,255,.1)}
+.kd::before{opacity:.25}
+.row.sel .rhead{background:linear-gradient(90deg,rgba(255,255,255,.1),rgba(255,255,255,.02));box-shadow:inset 2px 0 0 var(--acc)}
+.chname::before,.chip{box-shadow:none}
+.row.sel .chname{box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 3px 5px rgba(0,0,0,.35)}
+.st.on{filter:saturate(.72);box-shadow:inset 0 0 0 1px rgba(255,255,255,.4),inset 0 1px 0 rgba(255,255,255,.8),inset 0 -3px 4px rgba(0,0,0,.25),0 4px 0 color-mix(in srgb,var(--c) 42%,#000),0 7px 9px rgba(0,0,0,.45)}
+.st.on.soft{filter:saturate(.55) brightness(.72)}
+.st.on.now{filter:brightness(1.4) saturate(.8)}
+.clip{filter:saturate(.72)}
+.clip.sel{filter:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -2px 3px rgba(0,0,0,.25),0 3px 0 #6d1212,0 6px 9px rgba(0,0,0,.45)}
+.lt.on{background:#fff;box-shadow:0 0 6px rgba(255,255,255,.6)}
+#plHead{background:#fff;box-shadow:0 0 6px rgba(255,255,255,.5)}
+#plSel{box-shadow:none}
+.led.on{background:radial-gradient(circle at 36% 28%,#f1ffe9 0%,#86c97a 40%,#3a7a33 100%);box-shadow:inset 0 -1px 2px rgba(0,0,0,.3),0 1px 0 rgba(255,255,255,.14)}
+.led.solo{box-shadow:inset 0 -1px 2px rgba(0,0,0,.3)}
+.wk.on{background:linear-gradient(180deg,#fff3cf,var(--acc));box-shadow:inset 0 -4px 5px rgba(0,0,0,.16)}
+.bk.on{background:linear-gradient(180deg,#f0b247,#a86c0c);box-shadow:none}
+.strip.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.34),0 10px 20px -10px rgba(0,0,0,.7)}
+.pat.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.tog.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.sheet h2{color:var(--ink)}
+.marq{background:rgba(240,178,71,.16);border:1px solid var(--acc);box-shadow:none}
 .marq.erase{background:rgba(229,72,77,.18);border-color:#e5484d}
 
-/* 옆 도구 줄: 손 / 붓 */
-#tools{flex:none;display:flex;flex-direction:column;gap:6px;padding:10px 0 10px 10px}
-#tools button{width:40px;height:40px;padding:0;display:grid;place-items:center;color:var(--dim)}
-#tools button.on{color:#201400;background:var(--acc)}
+/* 옆 도구 줄: 누르기 / 붓 */
+#tools{flex:none;display:flex;flex-direction:column;gap:8px;padding:12px 0 12px 12px}
+#tools button{width:40px;height:40px;padding:0;display:grid;place-items:center;color:var(--dim);border-radius:12px}
+#tools button.on{color:#2a1a00;border-color:transparent;background:linear-gradient(180deg,#ffe9b5,#f0b247 55%,#cf8f1e);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 3px 0 #86580c,0 6px 10px rgba(0,0,0,.4)}
 #rack.brush .steps{cursor:crosshair}
 @media (max-width:900px){#tools{flex-direction:row;padding:8px 8px 0}}
 </style>
@@ -549,9 +533,9 @@ main::after{display:none}
       <label class="fld" data-tip="화음 도장: 한 번 눌러 화음 전체를 찍어요">화음<select id="rChord"></select></label>
       <button id="rInv" data-tip="자리바꿈: 화음의 아래 음을 한 옥타브 위로 올려요">자리바꿈 0</button>
       <button id="rLock" class="tog" data-tip="음계 맞춤: 켜면 곡의 음계에 있는 음만 찍혀요">음계 맞춤</button>
-      <button id="rGhost" class="tog" data-tip="같은 패턴의 다른 채널 음을 흐리게 비춰 봐요">다른 채널 비추기</button>
+      <button id="rGhost" class="tog" data-tip="같은 패턴의 다른 악기 음을 흐리게 비춰 봐요. 켜 두면 전체 선택이나 네모로 끌 때 다른 악기 음도 한 번에 골라져요">다른 악기 같이 보기</button>
       <label class="fld" data-tip="가로 확대">확대<input id="rZoom" type="range" min="8" max="52"></label>
-      <button id="rSelAll" data-tip="이 채널의 음을 전부 골라요 (Ctrl+A). 고른 뒤 끌어 옮기거나 지워요">전체 선택</button>
+      <button id="rSelAll" data-tip="음을 전부 골라요 (Ctrl+A). '다른 악기 같이 보기'가 켜져 있으면 모든 악기의 음을 한 번에 골라요. 고른 뒤 끌어 옮기거나 지워요">전체 선택</button>
       <button id="rClear" class="danger" data-tip="이 채널의 음을 이 패턴에서 전부 지워요. 음을 골랐을 때는 고른 것만 지워요">모두 지우기</button>
       <button id="rMenu" data-tip="박자 맞추기 · 옥타브 옮기기 · 펼치기 · 복사">도구</button>
       <label class="fld" data-tip="아래 칸에서 음마다 조절할 값">음마다<select id="rLane"><option value="v">세기</option><option value="pan">좌우(팬)</option><option value="f">미세 피치</option></select></label>
@@ -1868,6 +1852,9 @@ const R={tool:'draw',snap:1,len:2,chord:'none',inv:0,lock:false,ghost:true,sel:n
 const SNAPS=[[16,'1마디'],[8,'1/2'],[4,'1/4 (한 박)'],[2,'1/8'],[1,'1/16 (한 칸)'],[.5,'1/32'],[.25,'1/64'],[4/3,'1/8 셋잇단'],[2/3,'1/16 셋잇단'],[1/24,'자유 (칸 없이)']];
 let rollSc,rollCv,laneCv;
 function rollNotes(){const p=curPat(),ch=selCh();if(!ch)return[];return p.notes[ch.id]||(p.notes[ch.id]=[]);}
+/* '다른 채널 비추기'를 켜면 비친 다른 악기의 음도 함께 고를 수 있다 */
+function pickNotes(){if(!R.ghost)return rollNotes();const p=curPat(),out=[];for(const c of song.channels){const a=p.notes[c.id];if(a)out.push(...a);}return out;}
+function ownerId(n){const p=curPat();for(const k in p.notes)if(p.notes[k].includes(n))return k;return selCh().id;}
 function openRoll(id){song.sel=id;R.sel.clear();setView('roll');}
 function fitCanvas(cv,w,hh){const d=window.devicePixelRatio||1,W=Math.max(1,Math.round(w*d)),H=Math.max(1,Math.round(hh*d));cv.style.width=w+'px';cv.style.height=hh+'px';if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;}const g=cv.getContext('2d');g.setTransform(d,0,0,d,0,0);return g;}
 function sizeRoll(){
@@ -1915,7 +1902,7 @@ function drawRoll(){
   const xe=KEYW+L*z-sx;
   if(xe<W){g.fillStyle='rgba(0,0,0,.55)';g.fillRect(Math.max(KEYW,xe),RUL,W,H);if(xe>KEYW-200){g.fillStyle='rgba(255,255,255,.4)';g.font='12px sans-serif';g.textBaseline='middle';g.fillText('여기에 그리면 패턴이 늘어나요',Math.max(KEYW,xe)+12,RUL+16);}}
   const box=n=>{const x=KEYW+n.s*z-sx,y=RUL+(HI-n.p)*rh-sy,w=Math.max(3,n.l*z-1);return(x+w<KEYW||x>W||y<RUL-rh||y>H)?null:[x,y+1,w,rh-3];};
-  if(R.ghost){g.fillStyle='rgba(185,200,222,.17)';for(const o of song.channels){if(o===ch)continue;const ns=pat.notes[o.id];if(!ns)continue;for(const n of ns){const b=box(n);if(b){rr(g,b[0],b[1],b[2],b[3],3);g.fill();}}}}
+  if(R.ghost){g.fillStyle='rgba(185,200,222,.17)';for(const o of song.channels){if(o===ch)continue;const ns=pat.notes[o.id];if(!ns)continue;for(const n of ns){const b=box(n);if(b){const on=R.sel.has(n);if(on){g.fillStyle=o.color;g.globalAlpha=.7;}rr(g,b[0],b[1],b[2],b[3],3);g.fill();if(on){g.globalAlpha=1;g.strokeStyle='#fff';g.lineWidth=1.5;g.stroke();g.lineWidth=1;g.fillStyle='rgba(185,200,222,.17)';}}}}}
   if(ch){
     const c0=ch.color,top=shade(c0,.45),bot=shade(c0,-.3),side=shade(c0,-.6);g.font='10px sans-serif';g.textBaseline='middle';
     for(const n of rollNotes()){
@@ -2001,7 +1988,7 @@ function initRoll(){
   $('#rTools').addEventListener('click',e=>{const b=e.target.closest('button');if(b){R.tool=b.dataset.tool;touch('roll');}});
   $('#rInv').onclick=()=>{R.inv=(R.inv+1)%4;touch('roll');};
   $('#rClear').onclick=()=>{if(R.sel.size){rollTool('del');return;}const ch=selCh(),ns=rollNotes();if(!ch||!ns.length){toast('지울 음이 없어요');return;}snap();curPat().notes[ch.id]=[];changed('roll','rack');toast(ns.length+'개 음을 모두 지웠어요 (↶ 로 되돌릴 수 있어요)');};
-  $('#rSelAll').onclick=()=>{const ns=rollNotes();if(!ns.length){toast('고를 음이 없어요');return;}R.sel=new Set(ns);touch('roll');toast(ns.length+'개 음을 모두 골랐어요. 끌어서 옮기거나 Delete로 지울 수 있어요');};
+  $('#rSelAll').onclick=()=>{const ns=pickNotes();if(!ns.length){toast('고를 음이 없어요');return;}R.sel=new Set(ns);touch('roll');toast((R.ghost?'모든 악기의 음 ':'')+ns.length+'개를 모두 골랐어요. 끌어서 옮기거나 Delete로 지울 수 있어요');};
   $('#rLock').onclick=()=>{R.lock=!R.lock;touch('roll');};$('#rGhost').onclick=()=>{R.ghost=!R.ghost;touch('roll');};
   $('#rZoom').addEventListener('input',e=>{R.zoom=+e.target.value;sizeRoll();drawRoll();drawLane();});
   $('#rLane').onchange=e=>{R.lane=e.target.value;drawLane();};
@@ -2048,7 +2035,7 @@ function initRoll(){
   const end=e=>{
     const D=R.drag;if(!D)return;R.drag=null;
     if(D.k==='key'){liveOff(D.V);drawRoll();}
-    else if(D.k==='band'){const a=Math.min(D.x0,D.x1),b=Math.max(D.x0,D.x1),lo=Math.min(D.p0,D.p1),hi=Math.max(D.p0,D.p1);for(const n of rollNotes())if(n.s<b&&n.s+n.l>a&&n.p>=lo&&n.p<=hi)R.sel.add(n);touch('roll');
+    else if(D.k==='band'){const a=Math.min(D.x0,D.x1),b=Math.max(D.x0,D.x1),lo=Math.min(D.p0,D.p1),hi=Math.max(D.p0,D.p1);for(const n of pickNotes())if(n.s<b&&n.s+n.l>a&&n.p>=lo&&n.p<=hi)R.sel.add(n);touch('roll');
       if(R.sel.size&&e&&e.clientX!=null&&(Math.abs(e.clientX-D.cx)>6||Math.abs(e.clientY-D.cy)>6)){const x=e.clientX,y=e.clientY;menu({getBoundingClientRect:()=>({left:x,right:x,top:y,bottom:y})},['고른 음 '+R.sel.size+'개',['지우기 (Delete)',()=>rollTool('del')],['복사 (Ctrl+C)',rollCopy],['바로 뒤에 복제 (Ctrl+D)',rollDup],['한 옥타브 올리기',()=>rollTool('up12')],['한 옥타브 내리기',()=>rollTool('dn12')],['고르기 풀기',()=>{R.sel.clear();touch('roll');}]]);}}
     else if(D.k==='size'||D.k==='move'){if(D.k==='size'&&D.orig[0])R.len=D.orig[0].n.l;let mx=0;for(const o of D.orig)mx=Math.max(mx,o.n.s);growPat(mx);changed('roll','rack');}
   };
@@ -2067,7 +2054,7 @@ function initRoll(){
   const lend=()=>{if(laneOn){laneOn=false;changed('rack');}};laneCv.addEventListener('pointerup',lend);laneCv.addEventListener('pointercancel',lend);
 }
 function rollTool(k){
-  const all=rollNotes(),tg=R.sel.size?all.filter(n=>R.sel.has(n)):all;if(!tg.length){toast('먼저 음을 그려 주세요');return;}
+  const all=rollNotes(),tg=R.sel.size?[...R.sel]:all;if(!tg.length){toast('먼저 음을 그려 주세요');return;}
   snap();const s=R.snap;
   switch(k){
     case 'quant':{const q=Math.max(s,.25);for(const n of tg){n.s=Math.max(0,rd(n.s,q));n.l=Math.max(q,rd(n.l,q));}break;}
@@ -2076,13 +2063,13 @@ function rollTool(k){
     case 'd2':for(const n of tg)n.l=Math.max(.25,n.l/2);break;
     case 'human':for(const n of tg)n.v=clamp(Math.round((n.v*(.82+Math.random()*.3))*100)/100,.2,1);break;
     case 'arp':{const groups=new Map();for(const n of tg){if(!groups.has(n.s))groups.set(n.s,[]);groups.get(n.s).push(n);}for(const [st,g] of groups){g.sort((a,b)=>a.p-b.p);const stepL=Math.max(.5,Math.min(s,g[0].l/g.length));g.forEach((n,i)=>{n.s=st+i*stepL;n.l=stepL;});}break;}
-    case 'del':{const p=curPat(),ch=selCh(),kill=new Set(tg);p.notes[ch.id]=all.filter(n=>!kill.has(n));R.sel.clear();break;}
+    case 'del':{const p=curPat(),kill=new Set(tg);for(const k in p.notes)p.notes[k]=p.notes[k].filter(n=>!kill.has(n));R.sel.clear();break;}
   }
   changed('roll','rack');
 }
 function rollCopy(){const src=[...R.sel];if(!src.length){toast('복사할 음을 먼저 골라 주세요 (선택 도구로 끌기)');return;}R.clip=src.map(n=>Object.assign({},n));toast(src.length+'개 음을 복사했어요');}
 function rollPaste(){if(!R.clip.length){toast('복사해 둔 음이 없어요');return;}snap();const made=R.clip.map(n=>Object.assign({},n));rollNotes().push(...made);R.sel=new Set(made);growPat(Math.max(...made.map(n=>n.s)));changed('roll','rack');toast('붙여 넣었어요. 끌어서 옮길 수 있어요');}
-function rollDup(){const src=[...R.sel];if(!src.length){toast('복제할 음을 먼저 골라 주세요');return;}snap();let a=Infinity,b=0;for(const n of src){a=Math.min(a,n.s);b=Math.max(b,n.s+n.l);}const span=Math.max(R.snap,Math.ceil((b-a)/R.snap-1e-6)*R.snap),made=src.map(n=>Object.assign({},n,{s:n.s+span}));rollNotes().push(...made);R.sel=new Set(made);growPat(Math.max(...made.map(n=>n.s)));changed('roll','rack');}
+function rollDup(){const src=[...R.sel];if(!src.length){toast('복제할 음을 먼저 골라 주세요');return;}snap();let a=Infinity,b=0;for(const n of src){a=Math.min(a,n.s);b=Math.max(b,n.s+n.l);}const span=Math.max(R.snap,Math.ceil((b-a)/R.snap-1e-6)*R.snap),made=[],p=curPat();for(const n of src){const m=Object.assign({},n,{s:n.s+span});made.push(m);const k=ownerId(n);(p.notes[k]||(p.notes[k]=[])).push(m);}R.sel=new Set(made);growPat(Math.max(...made.map(n=>n.s)));changed('roll','rack');}
 /* ───────── 플레이리스트 ───────── */
 const BW=56,TH=40,LAB=64,PL={tool:'draw',drag:null,sel:new Set(),clip:[]};
 function fmtTime(sec){const m=Math.floor(sec/60),s=Math.floor(sec%60);return m+':'+String(s).padStart(2,'0');}
@@ -2216,7 +2203,7 @@ function initKeys(){
       const k=e.key.toLowerCase();
       if(k==='z'){e.preventDefault();e.shiftKey?redo():undo();}else if(k==='y'){e.preventDefault();redo();}
       else if(VIEW==='list'){if(k==='a'){e.preventDefault();listSelAll();}else if(k==='c'){e.preventDefault();listCopy();}else if(k==='v'){e.preventDefault();listPaste();}else if(k==='d'||k==='b'){e.preventDefault();listDupSel();}}
-      else if(VIEW==='roll'){if(k==='a'){e.preventDefault();R.sel=new Set(rollNotes());touch('roll');}else if(k==='c'){e.preventDefault();rollCopy();}else if(k==='v'){e.preventDefault();rollPaste();}else if(k==='d'){e.preventDefault();rollDup();}}
+      else if(VIEW==='roll'){if(k==='a'){e.preventDefault();R.sel=new Set(pickNotes());touch('roll');}else if(k==='c'){e.preventDefault();rollCopy();}else if(k==='v'){e.preventDefault();rollPaste();}else if(k==='d'){e.preventDefault();rollDup();}}
       return;
     }
     if(e.code==='Space'){e.preventDefault();if(tg&&tg.blur&&tg.tagName==='BUTTON')tg.blur();T.playing?stop():play();return;}
