@@ -529,6 +529,7 @@ canvas.wave{width:100%;height:60px;border-radius:8px;background:rgba(0,0,0,.42);
         <button data-tool="draw" data-tip="그리기: 빈 곳을 누르면 음이 생기고, 옆으로 끌면 길어져요">그리기</button>
         <button data-tool="erase" data-tip="지우기: 음을 누르거나 문지르면 지워져요 (마우스 오른쪽 버튼도 같아요)">지우기</button>
         <button data-tool="select" data-tip="선택: 끌어서 여러 음을 고른 뒤 옮기거나 지워요">선택</button>
+        <button data-tool="bend" data-tip="꺾기: 음을 누른 채 오른쪽으로 끌면 그 뒤로 이어서 위나 아래로 비스듬히 꺾여요. 또 끌면 계속 이어져서 올라갔다 내려갔다 할 수 있어요. 그냥 누르면 마지막 꺾임이 지워져요">꺾기</button>
         <button data-tool="hand" data-tip="이동: 터치 화면에서 화면을 밀어 움직여요">이동</button>
       </div>
       <label class="fld" data-tip="칸 크기: 음이 달라붙는 간격. '자유'를 고르면 칸 없이 아무 데나 놓을 수 있어요">칸<select id="rSnap"></select></label>
@@ -1004,8 +1005,8 @@ function vRelease(V,tr){
   for(const a of V.amps){const x=Math.max(tr,a.t0);a.g.cancelScheduledValues(x);a.g.setTargetAtTime(0,x,a.R/4);V.end=Math.max(V.end,x+a.R*1.4+.05);}
   if(V.end>0)for(const s of V.srcs){try{s.stop(V.end);}catch(e){}}
 }
-/* 꺾는 음: 길이의 40% 지점까지는 그대로 가다가 끝에서 bend 반음만큼 올라가(내려가) 있다 */
-function bendP(p,v,x){if(!x.bend||!x.dur)return;p.setValueAtTime(v,x.t+x.dur*.4);p.exponentialRampToValueAtTime(v*Math.pow(2,x.bend/12),x.t+x.dur);}
+/* 꺾는 음: path=[[초,반음],…] 점들을 따라 음 높이가 미끄러지듯 올라가고 내려간다 */
+function bendP(p,v,x){const P=x.path;if(!P||P.length<2)return;p.setValueAtTime(v,x.t+P[0][0]);for(let i=1;i<P.length;i++)p.exponentialRampToValueAtTime(v*Math.pow(2,P[i][1]/12),x.t+Math.max(P[i][0],P[i-1][0]+.005));}
 function vCut(V,t){ // 울리던 음을 바로 끊는다
   if(!V)return;if(V.bus){V.bus.cancelScheduledValues(t);V.bus.setTargetAtTime(0,t,.006);}
   for(const a of V.amps){const x=Math.max(t,a.t0-.004);a.g.cancelScheduledValues(x);a.g.setTargetAtTime(0,x,.008);}
@@ -1106,7 +1107,7 @@ class Engine{
     if(o.pan){const p=c.createStereoPanner();p.pan.value=clamp(o.pan,-1,1);p.connect(S.in);dest=p;}
     const m=midi+ch.oct*12+ch.semi+(ch.fine+ch.pk+(o.fine||0))/100+(60-ch.root)+(hit||ch.mainp===false?0:this.song.mpitch),th=ch.thick/100;
     vel=1-(1-vel)*ch.velsen/100;
-    const x={t,dur,vel,dest,V,relM:Math.pow(4,(ch.rel-50)/50),atk:ch.atk/100*1.2,vib:ch.vib,glide:ch.glide/1000,sgate:ch.sgate,sst:ch.sst||0,sen:ch.sen==null?100:ch.sen,srev:!!ch.srev,bend:hit?0:(o.bend||0),from:o.from!=null?o.from+(m-midi):null};
+    const x={t,dur,vel,dest,V,relM:Math.pow(4,(ch.rel-50)/50),atk:ch.atk/100*1.2,vib:ch.vib,glide:ch.glide/1000,sgate:ch.sgate,sst:ch.sst||0,sen:ch.sen==null?100:ch.sen,srev:!!ch.srev,path:hit?null:o.path,from:o.from!=null?o.from+(m-midi):null};
     if(hit){this.vHit(d,m,x);if(d.duck)this.duckAt(t);return V;}
     const n=th<.2?1:th<.65?3:5,offs=n===1?[0]:n===3?[-1,0,1]:[-1,-.5,0,.5,1],sp=th*24;
     for(let i=0;i<n;i++){
@@ -1324,6 +1325,9 @@ function ensureAudio(){
   if(!AC){const C=window.AudioContext||window.webkitAudioContext;AC=new C({latencyHint:'interactive'});RSR=AC.sampleRate;E=new Engine(AC);E.sync(song,[PV]);}
   if(AC.state!=='running')AC.resume();
 }
+/* 꺾는 음: n.k(평평한 부분 길이)와 n.pts=[[시작에서 몇 칸, 몇 반음],…] → 초 단위 길 */
+function bentOf(n){if(n.b){n.k=n.l*.4;n.pts=[[n.l,n.b]];delete n.b;}return n.pts&&n.pts.length?n:null;}
+function notePath(n,k){return bentOf(n)?[[(n.k||0)*k,0]].concat(n.pts.map(q=>[q[0]*k,q[1]])):null;}
 const stepDur=()=>60/song.bpm/4;
 function songBars(){let m=0;for(const c of song.clips){const p=patById(c.pat);if(p)m=Math.max(m,c.start+p.bars);}return m||4;}
 const loopLen=()=>T.mode==='pat'?curPat().bars*16:songBars()*16;
@@ -1356,7 +1360,7 @@ function fireAll(eng,evs,timeOf,sd){
   for(const ev of evs){
     const ch=ev.ch,n=ev.n,k=ch.id+'@'+ev.pos;if(k===lk)idx++;else{idx=0;lk=k;}
     let t=timeOf(ev.pos)+idx*ch.strum/1000+ch.shift/100*sd;if(song.swing&&Math.floor(ev.pos)%2===1)t+=song.swing/100*sd*.5*ch.swg/100;
-    const dur=Math.max(.02,n.l*sd*ch.gate/100),pan=(n.pan||0)+(ch.kpan?(n.p-60)/24*ch.kpan/100:0),o={pan,fine:n.f,bend:n.b},st=eng.last.get(ch.id);
+    const dur=Math.max(.02,n.l*sd*ch.gate/100),pan=(n.pan||0)+(ch.kpan?(n.p-60)/24*ch.kpan/100:0),o={pan,fine:n.f,path:notePath(n,sd*ch.gate/100)},st=eng.last.get(ch.id);
     if(ch.glide>0&&st&&t<st.end+.3&&st.m!==n.p)o.from=st.m;
     eng.last.set(ch.id,{m:n.p,end:t+dur});
     eng.play(ch,n.p,t,dur,n.v,o);
@@ -1991,18 +1995,22 @@ function drawRoll(){
   if(ch){
     const c0=ch.color,top=shade(c0,.45),bot=shade(c0,-.3),side=shade(c0,-.6);g.font='10px sans-serif';g.textBaseline='middle';
     for(const n of rollNotes()){
-      const b=box(n);if(!b)continue;const x=b[0],y=b[1],w=b[2],hh=b[3];
+      const b=box(n);if(!b)continue;const x=b[0],y=b[1],hh=b[3],bent=!hit&&bentOf(n),w=bent?Math.max(3,n.k*z-1):b[2];
       g.globalAlpha=.5+.5*n.v;
+      if(bent){ // 꺾인 가지: 몸통과 같은 굵기의 띠가 점들을 따라 비스듬히 이어진다
+        const yc=y+hh/2-1,path=dy=>{g.beginPath();g.moveTo(x+n.k*z-3,yc+dy);for(const q of n.pts)g.lineTo(x+q[0]*z-1,yc-q[1]*rh+dy);};
+        g.lineJoin='round';g.lineCap='round';
+        if(R.sel.has(n)){g.strokeStyle='#fff';g.lineWidth=hh+3;path(0);g.stroke();}
+        g.strokeStyle='rgba(0,0,0,.5)';g.lineWidth=hh;path(4);g.stroke();
+        g.strokeStyle=side;path(3);g.stroke();
+        g.strokeStyle=c0;path(0);g.stroke();
+        g.strokeStyle='rgba(255,255,255,.45)';g.lineWidth=1;path(-hh/2+1.5);g.stroke();
+        g.lineJoin='miter';g.lineCap='butt';}
       g.fillStyle='rgba(0,0,0,.5)';rr(g,x+1.5,y+3,w,hh,4);g.fill();        // 바닥 그림자
       g.fillStyle=side;rr(g,x,y+2,w,hh,4);g.fill();                         // 옆면(두께)
       const gr=g.createLinearGradient(0,y-1,0,y+hh-1);gr.addColorStop(0,top);gr.addColorStop(.42,c0);gr.addColorStop(1,bot);
       g.fillStyle=gr;rr(g,x,y-1,w,hh,4);g.fill();                           // 윗면
       if(w>7){g.fillStyle='rgba(255,255,255,.62)';g.fillRect(x+3,y,w-6,1);} // 반사광
-      if(n.b&&!hit){ // 꺾는 음: 몸통 40% 지점에서 끝의 목표 음까지 올라가는 가지
-        const x0=x+w*.4,y0=y+hh/2-1,x1=x+w,y1=y0-n.b*rh;g.lineCap='round';
-        g.strokeStyle='rgba(0,0,0,.55)';g.lineWidth=8;g.beginPath();g.moveTo(x0,y0);g.quadraticCurveTo(x0+(x1-x0)*.55,y0,x1,y1);g.stroke();
-        g.strokeStyle=c0;g.lineWidth=5;g.beginPath();g.moveTo(x0,y0);g.quadraticCurveTo(x0+(x1-x0)*.55,y0,x1,y1);g.stroke();
-        g.fillStyle='#fff';g.beginPath();g.arc(x1,y1,3.5,0,7);g.fill();g.lineWidth=1;g.lineCap='butt';}
       g.globalAlpha=1;
       if(R.sel.has(n)){g.strokeStyle='#fff';g.lineWidth=1.5;g.shadowColor='rgba(255,255,255,.95)';g.shadowBlur=0;rr(g,x,y-1,w,hh,4);g.stroke();g.shadowBlur=0;g.lineWidth=1;}
       if(w>26&&!hit){g.fillStyle='rgba(0,0,0,.66)';g.fillText(NOTE[n.p%12]+(Math.floor(n.p/12)-1),x+4,y+hh/2-.5);}
@@ -2064,7 +2072,10 @@ function growPat(startPos){ // 패턴 끝 뒤에 음이 놓이면 패턴을 그�
   const p=curPat(),need=Math.min(MAXBARS,Math.floor(startPos/16+1e-9)+1);if(need<=p.bars)return false;
   p.bars=need;toast('패턴을 '+need+'마디로 늘렸어요');touch(...ALLV);return true;
 }
-function hitNote(q){const ns=rollNotes();for(let i=ns.length-1;i>=0;i--){const n=ns[i];if(n.p===q.pitch&&q.step>=n.s&&q.step<n.s+Math.max(n.l,3/R.zoom))return n;}return null;}
+function pitchAt(n,off){if(!bentOf(n)||off<=n.k)return 0;let t0=n.k,d0=0;for(const q of n.pts){if(off<=q[0])return d0+(q[1]-d0)*(off-t0)/Math.max(1e-6,q[0]-t0);t0=q[0];d0=q[1];}return d0;}
+function fixBend(n){if(!bentOf(n))return;n.pts=n.pts.filter(q=>q[0]<n.l-1e-6).concat([[n.l,n.pts[n.pts.length-1][1]]]);n.k=Math.min(n.k,n.pts[0][0]);}
+function scaleNote(n,f){n.l*=f;if(bentOf(n)){n.k*=f;n.pts=n.pts.map(q=>[q[0]*f,q[1]]);}}
+function hitNote(q){const ns=rollNotes();for(let i=ns.length-1;i>=0;i--){const n=ns[i];if(q.step>=n.s&&q.step<n.s+Math.max(n.l,3/R.zoom)){const pa=pitchAt(n,q.step-n.s);if(Math.abs(n.p+pa-q.pitch)<=(pa?1.2:0))return n;}}return null;}
 function previewNote(p,v){const ch=selCh();if(!ch||!E||T.playing)return;E.note(ch,p,AC.currentTime+.005,.28,v||.8);}
 function liveOn(p){const ch=selCh();if(!ch)return null;ensureAudio();return E.note(ch,p,AC.currentTime+.005,null,.85);}
 function liveOff(V){if(V&&AC)vRelease(V,AC.currentTime);}
@@ -2082,7 +2093,7 @@ function initRoll(){
   $('#rLock').onclick=()=>{R.lock=!R.lock;touch('roll');};$('#rGhost').onclick=()=>{R.ghost=!R.ghost;touch('roll');};
   $('#rZoom').addEventListener('input',e=>{R.zoom=+e.target.value;sizeRoll();drawRoll();drawLane();});
   $('#rLane').onchange=e=>{R.lane=e.target.value;drawLane();};
-  $('#rMenu').onclick=e=>menu(e.currentTarget,['자동으로 만들기 (이 채널, 이 패턴)',['화음 진행 넣기',()=>autoPart('chord')],['가락 만들기',()=>autoPart('melody')],['베이스 줄 만들기',()=>autoPart('bass')],'-','고른 음에 적용 (고른 게 없으면 전부)',['박자 맞추기 (퀀타이즈)',()=>rollTool('quant')],['반음 올리기',()=>rollTool('up1')],['반음 내리기',()=>rollTool('dn1')],['옥타브 올리기',()=>rollTool('up12')],['옥타브 내리기',()=>rollTool('dn12')],['길이 2배',()=>rollTool('x2')],['길이 절반',()=>rollTool('d2')],['화음을 차례로 펼치기 (아르페지오)',()=>rollTool('arp')],['세기 살짝 흩뜨리기 (사람 느낌)',()=>rollTool('human')],'-',['전부 고르기 (Ctrl+A)',()=>{R.sel=new Set(rollNotes());touch('roll');}],['복사 (Ctrl+C)',rollCopy],['붙여넣기 (Ctrl+V)',rollPaste],['바로 뒤에 복제 (Ctrl+D)',rollDup],['지우기 (Delete)',()=>rollTool('del')]]);
+  $('#rMenu').onclick=e=>menu(e.currentTarget,['자동으로 만들기 (이 채널, 이 패턴)',['화음 진행 넣기',()=>autoPart('chord')],['가락 만들기',()=>autoPart('melody')],['베이스 줄 만들기',()=>autoPart('bass')],'-','고른 음에 적용 (고른 게 없으면 전부)',['꺾임 없애기 (곧게 펴기)',()=>rollTool('unbend')],['박자 맞추기 (퀀타이즈)',()=>rollTool('quant')],['반음 올리기',()=>rollTool('up1')],['반음 내리기',()=>rollTool('dn1')],['옥타브 올리기',()=>rollTool('up12')],['옥타브 내리기',()=>rollTool('dn12')],['길이 2배',()=>rollTool('x2')],['길이 절반',()=>rollTool('d2')],['화음을 차례로 펼치기 (아르페지오)',()=>rollTool('arp')],['세기 살짝 흩뜨리기 (사람 느낌)',()=>rollTool('human')],'-',['전부 고르기 (Ctrl+A)',()=>{R.sel=new Set(rollNotes());touch('roll');}],['복사 (Ctrl+C)',rollCopy],['붙여넣기 (Ctrl+V)',rollPaste],['바로 뒤에 복제 (Ctrl+D)',rollDup],['지우기 (Delete)',()=>rollTool('del')]]);
   rollSc.addEventListener('scroll',()=>{drawRoll();drawLane();},{passive:true});
   new ResizeObserver(()=>{sizeRoll();drawRoll();drawLane();}).observe(rollSc);
   rollCv.addEventListener('contextmenu',e=>e.preventDefault());
@@ -2095,6 +2106,10 @@ function initRoll(){
     const n=hitNote(q);
     if(R.tool==='erase'||e.button===2){snap();R.drag={k:'erase'};if(n){removeNote(n);changed('roll','rack');}return;}
     if(R.tool==='hand')return;
+    if(R.tool==='bend'){
+      if(!n){toast('꺾을 음을 누른 채 오른쪽으로 끌어 주세요');return;}
+      if((instOf(ch)||{}).e==='h'){toast('드럼 소리는 꺾을 수 없어요');return;}
+      snap();bentOf(n);R.sel.clear();R.sel.add(n);R.drag={k:'bend',n,l0:n.l,k0:n.pts?n.k:n.l,pts0:n.pts?n.pts.map(a=>a.slice()):[],moved:false};drawRoll();return;}
     if((!n&&R.tool==='select')||((e.ctrlKey||e.metaKey||(e.shiftKey&&!n))&&R.tool!=='hand')){if(!e.shiftKey||e.ctrlKey||e.metaKey)R.sel.clear();R.drag={k:'band',x0:q.step,p0:q.pitch,x1:q.step,p1:q.pitch,cx:e.clientX,cy:e.clientY};drawRoll();return;}
     snap();
     if(n){
@@ -2111,7 +2126,7 @@ function initRoll(){
   });
   rollCv.addEventListener('pointermove',e=>{
     const D=R.drag,q=rollPt(e);
-    if(!D){if(e.pointerType==='mouse'){const n=q.px>=KEYW&&q.py>=RUL?hitNote(q):null;rollCv.style.cursor=R.tool==='erase'?'crosshair':n?((n.s+n.l-q.step)*R.zoom<Math.min(8,n.l*R.zoom*.35)?'ew-resize':'move'):'default';}return;}
+    if(!D){if(e.pointerType==='mouse'){const n=q.px>=KEYW&&q.py>=RUL?hitNote(q):null;rollCv.style.cursor=R.tool==='erase'||R.tool==='bend'?'crosshair':n?((n.s+n.l-q.step)*R.zoom<Math.min(8,n.l*R.zoom*.35)?'ew-resize':'move'):'default';}return;}
     if(D.k==='key'){const p=clamp(q.pitch,LO,HI);if(p!==D.p){liveOff(D.V);D.p=p;D.V=liveOn(p);drawRoll();}}
     else if(D.k==='erase'){const n=q.px>=KEYW?hitNote(q):null;if(n){removeNote(n);changed('roll','rack');}}
     else if(D.k==='band'){D.x1=q.step;D.p1=q.pitch;drawRoll();}
@@ -2120,16 +2135,25 @@ function initRoll(){
       for(const o of D.orig){o.n.s=o.s+dss;let p=clamp(o.p+dp,LO,HI);if(R.lock&&D.orig.length===1)p=snapScale(p);o.n.p=p;}
       if(dp!==D.dp){D.dp=dp;previewNote(D.orig[0].n.p,D.orig[0].n.v);}
       drawRoll();drawLane();
-    }else if(D.k==='size'){const dl=rd(q.step-D.x0,R.snap);const dp=D.p0==null||(instOf(selCh())||{}).e==='h'?0:q.pitch-D.p0;
-      for(const o of D.orig){o.n.l=Math.max(Math.min(minLen(),o.l),o.l+dl);if(o.b0===undefined)o.b0=o.n.b||0;const bb=o.n.l>=2?clamp(o.b0+dp,-24,24):o.b0;if(bb)o.n.b=bb;else delete o.n.b;}
-      if(dp&&!R.bendTold){R.bendTold=true;toast('음 끝을 위아래로 끌면 음이 꺾여요. 다시 같은 줄로 내리면 꺾임이 사라져요');}drawRoll();}
+    }else if(D.k==='size'){const dl=rd(q.step-D.x0,R.snap);
+      for(const o of D.orig){const nl=Math.max(Math.min(minLen(),o.l),o.l+dl);if(bentOf(o.n)){if(!o.pts0){o.k0=o.n.k;o.pts0=o.n.pts.map(a=>a.slice());}const f=nl/o.l;o.n.k=o.k0*f;o.n.pts=o.pts0.map(a=>[a[0]*f,a[1]]);}o.n.l=nl;}
+      drawRoll();}
+    else if(D.k==='bend'){const n=D.n,off=q.step-n.s;
+      if(off>D.l0+.05){const end=Math.max(D.l0+Math.max(R.snap,.25),rd(off,R.snap)),dp=clamp(q.pitch,LO,HI)-n.p;D.moved=true;n.k=D.k0;n.pts=D.pts0.concat([[end,dp]]);n.l=end;}
+      else{D.moved=false;n.l=D.l0;if(D.pts0.length){n.k=D.k0;n.pts=D.pts0.map(a=>a.slice());}else{delete n.k;delete n.pts;}}
+      drawRoll();}
   });
   const end=e=>{
     const D=R.drag;if(!D)return;R.drag=null;
     if(D.k==='key'){liveOff(D.V);drawRoll();}
     else if(D.k==='band'){const a=Math.min(D.x0,D.x1),b=Math.max(D.x0,D.x1),lo=Math.min(D.p0,D.p1),hi=Math.max(D.p0,D.p1);for(const n of pickNotes())if(n.s<b&&n.s+n.l>a&&n.p>=lo&&n.p<=hi)R.sel.add(n);touch('roll');
       if(R.sel.size&&e&&e.clientX!=null&&(Math.abs(e.clientX-D.cx)>6||Math.abs(e.clientY-D.cy)>6)){const x=e.clientX,y=e.clientY;menu({getBoundingClientRect:()=>({left:x,right:x,top:y,bottom:y})},['고른 음 '+R.sel.size+'개',['지우기 (Delete)',()=>rollTool('del')],['복사 (Ctrl+C)',rollCopy],['바로 뒤에 복제 (Ctrl+D)',rollDup],['한 옥타브 올리기',()=>rollTool('up12')],['한 옥타브 내리기',()=>rollTool('dn12')],['고르기 풀기',()=>{R.sel.clear();touch('roll');}]]);}}
-    else if(D.k==='size'||D.k==='move'){if(D.k==='size'&&D.orig[0]){R.len=D.orig[0].n.l;const n0=D.orig[0].n;if(n0.b&&n0.b!==D.orig[0].b0&&E&&!T.playing){const ch=selCh();E.note(ch,n0.p,AC.currentTime+.01,Math.min(2.5,Math.max(.25,n0.l*stepDur())),n0.v||.8,{bend:n0.b});}}let mx=0;for(const o of D.orig)mx=Math.max(mx,o.n.s);growPat(mx);changed('roll','rack');}
+    else if(D.k==='bend'){const n=D.n;
+      if(D.moved){ensureAudio();if(!T.playing)E.note(selCh(),n.p,AC.currentTime+.01,Math.min(4,n.l*stepDur()),n.v||.8,{path:notePath(n,stepDur())});}
+      else if(D.pts0.length){const pts=D.pts0.slice(0,-1);if(pts.length){n.pts=pts;n.l=pts[pts.length-1][0];}else{n.l=D.k0;delete n.k;delete n.pts;}toast('마지막 꺾임을 지웠어요');}
+      else toast('음을 누른 채 오른쪽으로 끌면 그 뒤로 이어서 위·아래로 꺾여요');
+      growPat(n.s+n.l-1);changed('roll','rack');}
+    else if(D.k==='size'||D.k==='move'){if(D.k==='size'&&D.orig[0]&&!bentOf(D.orig[0].n))R.len=D.orig[0].n.l;let mx=0;for(const o of D.orig)mx=Math.max(mx,o.n.s);growPat(mx);changed('roll','rack');}
   };
   rollCv.addEventListener('pointerup',end);rollCv.addEventListener('pointercancel',end);
   rollCv.addEventListener('dblclick',e=>{if(R.tool!=='draw')return;const q=rollPt(e),n=q.px>=KEYW&&q.py>=RUL?hitNote(q):null;if(n){removeNote(n);changed('roll','rack');}});
@@ -2149,10 +2173,11 @@ function rollTool(k){
   const all=rollNotes(),tg=R.sel.size?[...R.sel]:all;if(!tg.length){toast('먼저 음을 그려 주세요');return;}
   snap();const s=R.snap;
   switch(k){
-    case 'quant':{const q=Math.max(s,.25);for(const n of tg){n.s=Math.max(0,rd(n.s,q));n.l=Math.max(q,rd(n.l,q));}break;}
+    case 'quant':{const q=Math.max(s,.25);for(const n of tg){n.s=Math.max(0,rd(n.s,q));if(!bentOf(n))n.l=Math.max(q,rd(n.l,q));}break;}
+    case 'unbend':for(const n of tg)if(bentOf(n)){n.l=n.k;delete n.k;delete n.pts;}break;
     case 'up1':case 'dn1':case 'up12':case 'dn12':{const d=k==='up1'?1:k==='dn1'?-1:k==='up12'?12:-12;for(const n of tg)n.p=clamp(n.p+d,LO,HI);previewNote(tg[0].p);break;}
-    case 'x2':for(const n of tg)n.l*=2;break;
-    case 'd2':for(const n of tg)n.l=Math.max(.25,n.l/2);break;
+    case 'x2':for(const n of tg)scaleNote(n,2);break;
+    case 'd2':for(const n of tg)if(n.l/2>=.25)scaleNote(n,.5);break;
     case 'human':for(const n of tg)n.v=clamp(Math.round((n.v*(.82+Math.random()*.3))*100)/100,.2,1);break;
     case 'arp':{const groups=new Map();for(const n of tg){if(!groups.has(n.s))groups.set(n.s,[]);groups.get(n.s).push(n);}for(const [st,g] of groups){g.sort((a,b)=>a.p-b.p);const stepL=Math.max(.5,Math.min(s,g[0].l/g.length));g.forEach((n,i)=>{n.s=st+i*stepL;n.l=stepL;});}break;}
     case 'del':{const p=curPat(),kill=new Set(tg);for(const k in p.notes)p.notes[k]=p.notes[k].filter(n=>!kill.has(n));R.sel.clear();break;}
