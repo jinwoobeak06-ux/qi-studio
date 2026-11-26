@@ -1274,43 +1274,6 @@ function build(name,bpm,key,scale,fn){
   fn(s,add,P,clip,mix);s.cur=s.patterns[0].id;s.sel=s.channels[0].id;song=prev;return s;
 }
 const TEMPLATES={
-  qimix:['Claude가 만든 펑크 "몬타젱 QI"',()=>build('몬타젱 QI',130,2,'minor',(s,add,P,clip,mix)=>{
-    // 레 단조 · Dm Dm Bb C. 먹먹한 인트로 → 드롭 → 카우벨 브레이크 → 더 꽉 찬 드롭 → 먹먹하게 끝
-    mix(1,'드럼',{comp:.3});mix(2,'베이스',{drive:.22,comp:.2});mix(3,'멜로디',{rev:.25,dly:.2});mix(0,'마스터',{comp:.3});
-    const bend=(pat,ch,at,k,pts)=>{const n=(pat.notes[ch.id]||[]).find(n=>n.s===at);if(n){n.k=k;n.pts=pts;n.l=pts[pts.length-1][0];}};
-    const kick=add('fkick',{name:'펑크 킥',mix:1}),clap=add('fclap',{name:'클랩',mix:1,vol:.72}),tl=add('ftom',{name:'탐보르 낮은',mix:1,pan:-.3,vol:.7}),th=add('ftom2',{name:'탐보르 높은',mix:1,pan:.3,vol:.68}),
-      hat=add('hat',{name:'하이햇',mix:1,vol:.4}),ago=add('agogo',{name:'아고고',mix:1,vol:.5,pan:.2,fxr:25}),
-      bass=add('f808',{name:'찌그러진 808',mix:2,glide:70,fxdrv:30}),
-      lead=add('funksiren',{name:'사이렌 리드',mix:3,pump:30,vol:.7,fxd:30}),
-      intro=add('funksiren',{name:'먹먹한 리드 (인트로)',mix:3,vol:.75,cut:32,fxr:60}),
-      cow=add('cowmel',{name:'카우벨 가락',mix:3,vol:.6,fxr:35,fxd:25}),
-      vox=add('voxchop',{name:'보컬 찹 "헤이"',mix:3,vol:.6,fxd:45,fxr:20}),
-      brass=add('funkbrass',{name:'브라스 스탭',mix:3,vol:.5,pump:45,fxch:30}),
-      rise=add('riser',{name:'라이저',mix:0,vol:.55}),imp=add('impact',{name:'임팩트',mix:0,vol:.7,fxr:40});
-    const d=P('드럼 (탐보르장)',1);stp(d,kick,'x... ..x. x.x. ..x.');stp(d,clap,'.... x... .... x..x');stp(d,tl,'..x. ...x ..x. ....');stp(d,th,'...x .... ...x ..x.');stp(d,hat,'x.o. x.o. x.o. x.oo');
-    const f=P('드럼 필인',1);stp(f,kick,'x... ..x. x.x. x.x.');stp(f,clap,'.... x... ..x. xxxX');stp(f,tl,'..x. ...x .xx. .x..');stp(f,th,'...x .... x..x ..xx');stp(f,hat,'x.o. x.o. x.x. ....');
-    const g=P('아고고',1);seq(g,ago,'0:A5 3:A5 6:D6 9:A5 10:A5 12:D6 14:A5',.7);
-    const hb=P('햇 쌓기',1);stp(hb,hat,'x.x. x.x. xxxx xxxx');stp(hb,clap,'.... .... x.x. xxxx',.6);
-    const b=P('베이스',4);seq(b,bass,'0:D1:3 6:D1:2 8:D1:2 11:D1 12:F1:2 14:D1:2 | 0:D1:3 6:D1:2 8:D1:2 11:A1 12:C2:2 14:A1:2 | 0:A#0:3 6:A#0:2 8:A#0:2 11:A#0 12:D1:2 14:A#0:2 | 0:C1:3 6:C1:2 8:C1:3 12:C1:2',.9);
-    bend(b,bass,28,2,[[4,7]]);bend(b,bass,60,2,[[4,-12]]);
-    const mel='0:D5 2:D5 3:F5 4:D5 6:A4:2 8:D5 10:F5 11:G5 12:F5:2 14:D5:2 | 0:D5 2:D5 3:F5 4:D5 6:A4:2 8:C5 10:D5 11:F5 12:E5:2 14:C5:2 | 0:F5 2:F5 3:A5 4:F5 6:D5:2 8:F5 10:G5 11:A5 12:G5:2 14:F5:2 | 0:E5 2:E5 3:G5 4:E5 6:C5:2 8:E5:2 10:G5:2 12:A5:2';
-    const m=P('가락',4);seq(m,lead,mel);bend(m,lead,60,2,[[4,5]]);bend(m,lead,12,1,[[2,2]]);
-    const mi=P('가락 (먹먹한 인트로)',4);seq(mi,intro,mel,.75);bend(mi,intro,60,2,[[4,5]]);
-    const c=P('카우벨 브레이크',4);seq(c,cow,'0:D5 3:D5 6:F5 8:D5 11:A4 14:C5 | 0:D5 3:D5 6:F5 8:G5 11:F5 14:E5 | 0:A#4 3:A#4 6:D5 8:A#4 11:F4 14:A4 | 0:C5 3:C5 6:E5 8:G5:2 12:E5:2 14:C5:2',.8);
-    const v=P('보컬 찹',1);seq(v,vox,'2:D4 6:D4 10:F4 14:D4',.75);
-    const br=P('브라스',4);seq(br,brass,'0:D4+F4+A4 3:D4+F4+A4 6:D4+F4+A4:2 10:D4+F4+A4 12:D4+F4+A4:2 | 0:D4+F4+A4 3:D4+F4+A4 6:D4+F4+A4:2 10:D4+F4+A4 12:D4+F4+A4:2 | 0:A#3+D4+F4 3:A#3+D4+F4 6:A#3+D4+F4:2 10:A#3+D4+F4 12:A#3+D4+F4:2 | 0:C4+E4+G4 3:C4+E4+G4 6:C4+E4+G4:2 10:C4+E4+G4 12:E4+G4+C5:3',.7);
-    const r=P('라이저',1);seq(r,rise,'0:C4:16',.8);const im=P('임팩트',1);seq(im,imp,'0:C4:8',.9);
-    // 인트로 0~3
-    clip(mi,2,0);clip(hb,0,3);clip(r,5,3);clip(v,4,2,3);
-    // 드롭 A 4~11
-    clip(im,5,4);clip(d,0,4,5,6,8,9,10);clip(f,0,7,11);clip(b,1,4,8);clip(m,2,4,8);clip(v,4,4,5,6,7,8,9,10,11);
-    // 브레이크 12~15
-    clip(c,3,12);clip(b,1,12);clip(hb,0,15);clip(r,5,15);clip(g,6,14,15);
-    // 드롭 B 16~23
-    clip(im,5,16);clip(d,0,16,17,18,20,21,22);clip(f,0,19,23);clip(b,1,16,20);clip(m,2,16,20);clip(c,3,20);clip(br,7,16,20);clip(g,6,16,17,18,19,20,21,22,23);clip(v,4,16,17,18,19,20,21,22,23);
-    // 끝 24~27
-    clip(im,5,24);clip(mi,2,24);
-  })],
   brazil:['브라질리언 펑크',()=>build('브라질리언 펑크',130,9,'minor',(s,add,P,clip,mix)=>{
     mix(1,'드럼',{comp:.25});mix(2,'베이스',{drive:.2});mix(3,'멜로디',{rev:.35,dly:.25});mix(0,'마스터',{comp:.25});
     const kick=add('fkick',{name:'펑크 킥',mix:1}),clap=add('fclap',{name:'클랩',mix:1,vol:.7}),tl=add('ftom',{name:'탐보르 낮은',mix:1,pan:-.25,vol:.7}),th=add('ftom2',{name:'탐보르 높은',mix:1,pan:.25,vol:.7}),hat=add('hat',{name:'하이햇',mix:1,vol:.45}),
