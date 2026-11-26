@@ -441,6 +441,8 @@ main::after{box-shadow:inset 0 4px 16px rgba(0,0,0,.75),inset 0 0 0 1px rgba(255
 .marq{background:rgba(240,178,71,.16);border:1px solid var(--acc);box-shadow:none}
 .marq.erase{background:rgba(229,72,77,.18);border-color:#e5484d}
 
+canvas.wave{width:100%;height:60px;border-radius:8px;background:rgba(0,0,0,.42);box-shadow:inset 0 2px 5px rgba(0,0,0,.65),0 1px 0 rgba(255,255,255,.07)}
+
 /* 옆 도구 줄: 누르기 / 붓 */
 #tools{flex:none;display:flex;flex-direction:column;gap:8px;padding:12px 0 12px 12px}
 #tools button{width:40px;height:40px;padding:0;display:grid;place-items:center;color:var(--dim);border-radius:12px}
@@ -1090,7 +1092,7 @@ class Engine{
     if(o.pan){const p=c.createStereoPanner();p.pan.value=clamp(o.pan,-1,1);p.connect(S.in);dest=p;}
     const m=midi+ch.oct*12+ch.semi+(ch.fine+ch.pk+(o.fine||0))/100+(60-ch.root)+(hit||ch.mainp===false?0:this.song.mpitch),th=ch.thick/100;
     vel=1-(1-vel)*ch.velsen/100;
-    const x={t,dur,vel,dest,V,relM:Math.pow(4,(ch.rel-50)/50),atk:ch.atk/100*1.2,vib:ch.vib,glide:ch.glide/1000,sgate:ch.sgate,from:o.from!=null?o.from+(m-midi):null};
+    const x={t,dur,vel,dest,V,relM:Math.pow(4,(ch.rel-50)/50),atk:ch.atk/100*1.2,vib:ch.vib,glide:ch.glide/1000,sgate:ch.sgate,sst:ch.sst||0,sen:ch.sen==null?100:ch.sen,from:o.from!=null?o.from+(m-midi):null};
     if(hit){this.vHit(d,m,x);if(d.duck)this.duckAt(t);return V;}
     const n=th<.2?1:th<.65?3:5,offs=n===1?[0]:n===3?[-1,0,1]:[-1,-.5,0,.5,1],sp=th*24;
     for(let i=0;i<n;i++){
@@ -1155,10 +1157,12 @@ class Engine{
     if(x.from!=null){src.playbackRate.setValueAtTime(rate*Math.pow(2,(x.from-m)/12),t);src.playbackRate.exponentialRampToValueAtTime(rate,t+Math.max(.01,x.glide));}else src.playbackRate.value=rate;
     const lg=src.detune?this.lfo(d,x):null;if(lg)lg.connect(src.detune);
     const shot=d.e==='s'&&(x.sgate===2||(x.sgate!==1&&d.shot)),lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=d.e==='s'?20000:1200+x.vel*x.vel*17000;lp.Q.value=.5;
-    src.connect(lp);
-    if(shot){const g=c.createGain();g.gain.value=x.vel*(d.g||.9)*(x.ug||1);lp.connect(g);g.connect(x.dest);}
-    else{lp.connect(this.amp(x,[.002,.1,1,d.rel||.15],d.g||.8));x.V.srcs.push(src);}
-    src.start(t);this.track(src);
+    let out=lp;src.connect(lp);
+    const trim=d.e==='s'&&(x.sst>0||x.sen<100),bd=B.buf.duration,t0=trim?bd*clamp(x.sst,0,99)/100:0,tl=trim?Math.max(.01,bd*clamp(x.sen,1,100)/100-t0):0;
+    if(trim){const tg=c.createGain(),real=tl/rate,f=Math.min(.012,real/3);tg.gain.setValueAtTime(1,t);tg.gain.setValueAtTime(1,t+real-f);tg.gain.linearRampToValueAtTime(0,t+real);lp.connect(tg);out=tg;}
+    if(shot){const g=c.createGain();g.gain.value=x.vel*(d.g||.9)*(x.ug||1);out.connect(g);g.connect(x.dest);}
+    else{out.connect(this.amp(x,[.002,.1,1,d.rel||.15],d.g||.8));x.V.srcs.push(src);}
+    if(trim)src.start(t,t0,tl);else src.start(t);this.track(src);
   }
   vSub(d,m,x,amt){
     const c=this.c,o=c.createOscillator();o.type='sine';o.frequency.value=mtof(m);
@@ -1197,7 +1201,7 @@ let song=null,uidN=1;
 const nid=()=>(uidN++).toString(36)+Math.random().toString(36).slice(2,6);
 const SAMPLES={}; // id → {name,u8} 불러온 소리 파일 원본
 const CHDEF={vol:.8,pan:0,mute:false,solo:false,mix:0,oct:0,semi:0,fine:0,thick:0,cut:100,res:0,atk:0,rel:50,glide:0,vib:0,strum:0,pump:0,
-  pk:0,prange:2,mono:false,maxp:0,gate:100,shift:0,swg:100,velsen:100,kpan:0,cutg:0,cutby:0,root:60,mainp:true,sgate:0,
+  pk:0,prange:2,mono:false,maxp:0,gate:100,shift:0,swg:100,velsen:100,kpan:0,cutg:0,cutby:0,root:60,mainp:true,sgate:0,sst:0,sen:100,
   arp:0,arpt:1,arpg:80,arpr:1,arprep:1,arpch:'auto',echo:0,echof:60,echot:3,echop:0,echopi:0,echopp:false};
 const PV=Object.assign({id:'__pv',pv:1,inst:'grand'},CHDEF);
 
@@ -1500,6 +1504,24 @@ function sl(label,obj,key,min,max,step,fmt,tip,views){
   inp.addEventListener('input',()=>{obj[key]=+inp.value;out.textContent=fmt(obj[key]);changed(...(views||[]));});
   return h('label',{class:'sl','data-tip':tip},h('span',{text:label}),inp,out);
 }
+/* 불러온 소리 파일의 길이 조절: 파형 위에서 쓸 구간(시작~끝)을 정한다 */
+function trimBox(ch,d){
+  const cv=h('canvas',{class:'wave',width:560,height:120,'aria-hidden':'true'}),info=h('small'),dur=d.buf.duration;
+  const draw=()=>{const g=cv.getContext('2d'),W=cv.width,H=cv.height,D=d.buf.getChannelData(0),n=Math.max(1,Math.floor(D.length/W));g.clearRect(0,0,W,H);
+    const a=ch.sst/100*W,b=ch.sen/100*W;
+    for(let x=0;x<W;x++){let lo=0,hi=0;for(let i=x*n,e=Math.min(D.length,i+n);i<e;i+=Math.max(1,n>>6)){const v=D[i];if(v<lo)lo=v;if(v>hi)hi=v;}g.fillStyle=x>=a&&x<=b?ch.color:'rgba(255,255,255,.2)';g.fillRect(x,H/2-hi*H/2,1,Math.max(1,(hi-lo)*H/2));}
+    g.fillStyle='#fff';g.fillRect(a,0,2,H);g.fillRect(Math.min(W-2,b),0,2,H);
+    info.textContent='쓰는 길이 '+(dur*(ch.sen-ch.sst)/100).toFixed(2)+'초 / 전체 '+dur.toFixed(2)+'초';};
+  const fix=k=>{if(ch.sen-ch.sst<1){if(k==='sst')ch.sst=ch.sen-1;else ch.sen=ch.sst+1;}};
+  const mk=(label,key,tip)=>{const el=sl(label,ch,key,0,100,.5,v=>(dur*v/100).toFixed(2)+'초',tip),inp=el.querySelector('input');
+    inp.addEventListener('input',()=>{fix(key);if(+inp.value!==ch[key]){inp.value=ch[key];rfill(inp);el.querySelector('output').textContent=(dur*ch[key]/100).toFixed(2)+'초';}draw();});
+    inp.addEventListener('change',()=>{if(E&&!T.playing)E.note(ch,ch.root||60,AC.currentTime+.01,Math.min(4,dur),.8);});return el;};
+  const bx=h('fieldset',null,h('legend',{text:'소리 길이 (자르기)'}),cv,
+    mk('시작','sst','시작: 소리 앞부분을 잘라내요. 놓으면 잘린 소리를 들려줘요'),
+    mk('끝','sen','끝: 소리 뒷부분을 잘라 짧게 만들어요. 놓으면 잘린 소리를 들려줘요'),
+    h('div',{class:'acts'},info,h('button',{text:'처음대로',onclick:()=>{snap();ch.sst=0;ch.sen=100;changed('panel');}})));
+  draw();return bx;
+}
 const pct=v=>Math.round(v)+'%',sgn=v=>(v>0?'+':'')+v;
 
 /* ───────── 위쪽 줄 ───────── */
@@ -1685,6 +1707,7 @@ function renderPanel(){
       sl('옥타브',ch,'oct',-3,3,1,sgn,'한 옥타브(12반음)씩 올리거나 내려요'),
       sl('반음',ch,'semi',-12,12,1,sgn,'반음씩 올리거나 내려요'),
       sl('미세 조율',ch,'fine',-100,100,1,v=>sgn(v)+'c','아주 조금 높이거나 낮춰요 (100 = 반음)')),
+    d&&d.e==='s'&&d.buf?trimBox(ch,d):null,
     h('fieldset',null,h('legend',{text:'소리 모양'}),
       sl('굵기',ch,'thick',0,100,1,pct,'소리 굵기: 올릴수록 소리를 여러 겹 쌓고 저음을 더해 두껍게 해요'),
       sl('밝기',ch,'cut',5,100,1,pct,'밝기: 낮추면 먹먹하고 어두운 소리가 돼요'),
