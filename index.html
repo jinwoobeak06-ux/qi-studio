@@ -1004,6 +1004,8 @@ function vRelease(V,tr){
   for(const a of V.amps){const x=Math.max(tr,a.t0);a.g.cancelScheduledValues(x);a.g.setTargetAtTime(0,x,a.R/4);V.end=Math.max(V.end,x+a.R*1.4+.05);}
   if(V.end>0)for(const s of V.srcs){try{s.stop(V.end);}catch(e){}}
 }
+/* 꺾는 음: 길이의 40% 지점까지는 그대로 가다가 끝에서 bend 반음만큼 올라가(내려가) 있다 */
+function bendP(p,v,x){if(!x.bend||!x.dur)return;p.setValueAtTime(v,x.t+x.dur*.4);p.exponentialRampToValueAtTime(v*Math.pow(2,x.bend/12),x.t+x.dur);}
 function vCut(V,t){ // 울리던 음을 바로 끊는다
   if(!V)return;if(V.bus){V.bus.cancelScheduledValues(t);V.bus.setTargetAtTime(0,t,.006);}
   for(const a of V.amps){const x=Math.max(t,a.t0-.004);a.g.cancelScheduledValues(x);a.g.setTargetAtTime(0,x,.008);}
@@ -1104,7 +1106,7 @@ class Engine{
     if(o.pan){const p=c.createStereoPanner();p.pan.value=clamp(o.pan,-1,1);p.connect(S.in);dest=p;}
     const m=midi+ch.oct*12+ch.semi+(ch.fine+ch.pk+(o.fine||0))/100+(60-ch.root)+(hit||ch.mainp===false?0:this.song.mpitch),th=ch.thick/100;
     vel=1-(1-vel)*ch.velsen/100;
-    const x={t,dur,vel,dest,V,relM:Math.pow(4,(ch.rel-50)/50),atk:ch.atk/100*1.2,vib:ch.vib,glide:ch.glide/1000,sgate:ch.sgate,sst:ch.sst||0,sen:ch.sen==null?100:ch.sen,srev:!!ch.srev,from:o.from!=null?o.from+(m-midi):null};
+    const x={t,dur,vel,dest,V,relM:Math.pow(4,(ch.rel-50)/50),atk:ch.atk/100*1.2,vib:ch.vib,glide:ch.glide/1000,sgate:ch.sgate,sst:ch.sst||0,sen:ch.sen==null?100:ch.sen,srev:!!ch.srev,bend:hit?0:(o.bend||0),from:o.from!=null?o.from+(m-midi):null};
     if(hit){this.vHit(d,m,x);if(d.duck)this.duckAt(t);return V;}
     const n=th<.2?1:th<.65?3:5,offs=n===1?[0]:n===3?[-1,0,1]:[-1,-.5,0,.5,1],sp=th*24;
     for(let i=0;i<n;i++){
@@ -1141,7 +1143,7 @@ class Engine{
     const lg=this.lfo(d,x);
     for(const O of d.o){
       const o=c.createOscillator();o.type=O[0];const ff=f*Math.pow(2,O[1]/12),dt=(O[2]||0)+cents;
-      if(x.from!=null){o.frequency.setValueAtTime(mtof(x.from+O[1]),t);o.frequency.exponentialRampToValueAtTime(ff,t+Math.max(.01,x.glide));}else o.frequency.value=ff;
+      if(x.from!=null){o.frequency.setValueAtTime(mtof(x.from+O[1]),t);o.frequency.exponentialRampToValueAtTime(ff,t+Math.max(.01,x.glide));}else o.frequency.value=ff;bendP(o.frequency,ff,x);
       if(d.pe){o.detune.setValueAtTime(dt+d.pe[0]*100,t);o.detune.setTargetAtTime(dt,t,d.pe[1]/3);}else o.detune.value=dt;
       if(lg)lg.connect(o.detune);
       const og=c.createGain();og.gain.value=O[3];o.connect(og);og.connect(pre);o.start(t);V.srcs.push(o);this.track(o);
@@ -1153,7 +1155,7 @@ class Engine{
   }
   vFm(d,m,x){
     const c=this.c,t=x.t,f=mtof(m),V=x.V,car=c.createOscillator();car.type=d.cw||'sine';
-    const setF=(o,mult)=>{if(x.from!=null){o.frequency.setValueAtTime(mtof(x.from)*mult,t);o.frequency.exponentialRampToValueAtTime(f*mult,t+Math.max(.01,x.glide));}else o.frequency.value=f*mult;o.detune.value=x.cents||0;};
+    const setF=(o,mult)=>{if(x.from!=null){o.frequency.setValueAtTime(mtof(x.from)*mult,t);o.frequency.exponentialRampToValueAtTime(f*mult,t+Math.max(.01,x.glide));}else o.frequency.value=f*mult;bendP(o.frequency,f*mult,x);o.detune.value=x.cents||0;};
     setF(car,1);
     const mods=[[d.r,d.i,d.idk,d.is]];if(d.r2)mods.push([d.r2,d.i2,d.id2||.1,d.is2||0]);
     for(const q of mods){
@@ -1167,7 +1169,7 @@ class Engine{
     const c=this.c,t=x.t,root=d.e==='p'?clamp(Math.round(m/2)*2,20,108):d.e==='k'?clamp(Math.round(m),14,110):(d.root||60),B=getBuf(d,root);if(!B)return;
     const rv=d.e==='s'&&x.srev;if(rv&&!d.rbuf){const b=B.buf,r=c.createBuffer(b.numberOfChannels,b.length,b.sampleRate);for(let k=0;k<b.numberOfChannels;k++){const a=b.getChannelData(k),o=r.getChannelData(k);for(let i=0,n=a.length;i<n;i++)o[i]=a[n-1-i];}d.rbuf=r;}
     const src=c.createBufferSource();src.buffer=rv?d.rbuf:B.buf;const rate=Math.pow(2,(m-root)/12+(x.cents||0)/1200)*B.corr;
-    if(x.from!=null){src.playbackRate.setValueAtTime(rate*Math.pow(2,(x.from-m)/12),t);src.playbackRate.exponentialRampToValueAtTime(rate,t+Math.max(.01,x.glide));}else src.playbackRate.value=rate;
+    if(x.from!=null){src.playbackRate.setValueAtTime(rate*Math.pow(2,(x.from-m)/12),t);src.playbackRate.exponentialRampToValueAtTime(rate,t+Math.max(.01,x.glide));}else src.playbackRate.value=rate;bendP(src.playbackRate,rate,x);
     const lg=src.detune?this.lfo(d,x):null;if(lg)lg.connect(src.detune);
     const shot=d.e==='s'&&(x.sgate===2||(x.sgate!==1&&d.shot)),lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=d.e==='s'?20000:1200+x.vel*x.vel*17000;lp.Q.value=.5;
     let out=lp;src.connect(lp);
@@ -1178,7 +1180,7 @@ class Engine{
     if(trim)src.start(t,t0,tl);else src.start(t);this.track(src);
   }
   vSub(d,m,x,amt){
-    const c=this.c,o=c.createOscillator();o.type='sine';o.frequency.value=mtof(m);
+    const c=this.c,o=c.createOscillator();o.type='sine';o.frequency.value=mtof(m);bendP(o.frequency,mtof(m),x);
     const sus=d.a&&d.a[2]>0,a=sus?[d.a[0],.1,1,d.a[3]]:[.004,1.2,0,.15];
     o.connect(this.amp(Object.assign({},x,{ug:1}),a,amt));o.start(x.t);x.V.srcs.push(o);this.track(o);
   }
@@ -1354,7 +1356,7 @@ function fireAll(eng,evs,timeOf,sd){
   for(const ev of evs){
     const ch=ev.ch,n=ev.n,k=ch.id+'@'+ev.pos;if(k===lk)idx++;else{idx=0;lk=k;}
     let t=timeOf(ev.pos)+idx*ch.strum/1000+ch.shift/100*sd;if(song.swing&&Math.floor(ev.pos)%2===1)t+=song.swing/100*sd*.5*ch.swg/100;
-    const dur=Math.max(.02,n.l*sd*ch.gate/100),pan=(n.pan||0)+(ch.kpan?(n.p-60)/24*ch.kpan/100:0),o={pan,fine:n.f},st=eng.last.get(ch.id);
+    const dur=Math.max(.02,n.l*sd*ch.gate/100),pan=(n.pan||0)+(ch.kpan?(n.p-60)/24*ch.kpan/100:0),o={pan,fine:n.f,bend:n.b},st=eng.last.get(ch.id);
     if(ch.glide>0&&st&&t<st.end+.3&&st.m!==n.p)o.from=st.m;
     eng.last.set(ch.id,{m:n.p,end:t+dur});
     eng.play(ch,n.p,t,dur,n.v,o);
@@ -1996,6 +1998,11 @@ function drawRoll(){
       const gr=g.createLinearGradient(0,y-1,0,y+hh-1);gr.addColorStop(0,top);gr.addColorStop(.42,c0);gr.addColorStop(1,bot);
       g.fillStyle=gr;rr(g,x,y-1,w,hh,4);g.fill();                           // 윗면
       if(w>7){g.fillStyle='rgba(255,255,255,.62)';g.fillRect(x+3,y,w-6,1);} // 반사광
+      if(n.b&&!hit){ // 꺾는 음: 몸통 40% 지점에서 끝의 목표 음까지 올라가는 가지
+        const x0=x+w*.4,y0=y+hh/2-1,x1=x+w,y1=y0-n.b*rh;g.lineCap='round';
+        g.strokeStyle='rgba(0,0,0,.55)';g.lineWidth=8;g.beginPath();g.moveTo(x0,y0);g.quadraticCurveTo(x0+(x1-x0)*.55,y0,x1,y1);g.stroke();
+        g.strokeStyle=c0;g.lineWidth=5;g.beginPath();g.moveTo(x0,y0);g.quadraticCurveTo(x0+(x1-x0)*.55,y0,x1,y1);g.stroke();
+        g.fillStyle='#fff';g.beginPath();g.arc(x1,y1,3.5,0,7);g.fill();g.lineWidth=1;g.lineCap='butt';}
       g.globalAlpha=1;
       if(R.sel.has(n)){g.strokeStyle='#fff';g.lineWidth=1.5;g.shadowColor='rgba(255,255,255,.95)';g.shadowBlur=0;rr(g,x,y-1,w,hh,4);g.stroke();g.shadowBlur=0;g.lineWidth=1;}
       if(w>26&&!hit){g.fillStyle='rgba(0,0,0,.66)';g.fillText(NOTE[n.p%12]+(Math.floor(n.p/12)-1),x+4,y+hh/2-.5);}
@@ -2097,7 +2104,7 @@ function initRoll(){
     }else{
       const s=fl(q.step,R.snap);if(s>=L+EXTRA)return;
       const d=instOf(ch),hit=d&&d.e==='h',ps=hit?[q.pitch]:chordPitches(R.lock?snapScale(q.pitch):q.pitch,R.chord,R.inv).filter(p=>p>=LO&&p<=HI),made=ps.map(p=>({s,l:R.len,p,v:.8}));
-      rollNotes().push(...made);R.sel=new Set(made);R.drag={k:'size',x0:q.step,isNew:true,orig:made.map(m=>({n:m,s:m.s,l:m.l,p:m.p}))};
+      rollNotes().push(...made);R.sel=new Set(made);R.drag={k:'size',x0:q.step,p0:q.pitch,isNew:true,orig:made.map(m=>({n:m,s:m.s,l:m.l,p:m.p}))};
       made.forEach((m,i)=>{if(i<5)previewNote(m.p,.8);});
     }
     changed('roll','rack');
@@ -2113,14 +2120,16 @@ function initRoll(){
       for(const o of D.orig){o.n.s=o.s+dss;let p=clamp(o.p+dp,LO,HI);if(R.lock&&D.orig.length===1)p=snapScale(p);o.n.p=p;}
       if(dp!==D.dp){D.dp=dp;previewNote(D.orig[0].n.p,D.orig[0].n.v);}
       drawRoll();drawLane();
-    }else if(D.k==='size'){const dl=rd(q.step-D.x0,R.snap);for(const o of D.orig)o.n.l=Math.max(Math.min(minLen(),o.l),o.l+dl);drawRoll();}
+    }else if(D.k==='size'){const dl=rd(q.step-D.x0,R.snap);const dp=D.p0==null||(instOf(selCh())||{}).e==='h'?0:q.pitch-D.p0;
+      for(const o of D.orig){o.n.l=Math.max(Math.min(minLen(),o.l),o.l+dl);if(o.b0===undefined)o.b0=o.n.b||0;const bb=o.n.l>=2?clamp(o.b0+dp,-24,24):o.b0;if(bb)o.n.b=bb;else delete o.n.b;}
+      if(dp&&!R.bendTold){R.bendTold=true;toast('음 끝을 위아래로 끌면 음이 꺾여요. 다시 같은 줄로 내리면 꺾임이 사라져요');}drawRoll();}
   });
   const end=e=>{
     const D=R.drag;if(!D)return;R.drag=null;
     if(D.k==='key'){liveOff(D.V);drawRoll();}
     else if(D.k==='band'){const a=Math.min(D.x0,D.x1),b=Math.max(D.x0,D.x1),lo=Math.min(D.p0,D.p1),hi=Math.max(D.p0,D.p1);for(const n of pickNotes())if(n.s<b&&n.s+n.l>a&&n.p>=lo&&n.p<=hi)R.sel.add(n);touch('roll');
       if(R.sel.size&&e&&e.clientX!=null&&(Math.abs(e.clientX-D.cx)>6||Math.abs(e.clientY-D.cy)>6)){const x=e.clientX,y=e.clientY;menu({getBoundingClientRect:()=>({left:x,right:x,top:y,bottom:y})},['고른 음 '+R.sel.size+'개',['지우기 (Delete)',()=>rollTool('del')],['복사 (Ctrl+C)',rollCopy],['바로 뒤에 복제 (Ctrl+D)',rollDup],['한 옥타브 올리기',()=>rollTool('up12')],['한 옥타브 내리기',()=>rollTool('dn12')],['고르기 풀기',()=>{R.sel.clear();touch('roll');}]]);}}
-    else if(D.k==='size'||D.k==='move'){if(D.k==='size'&&D.orig[0])R.len=D.orig[0].n.l;let mx=0;for(const o of D.orig)mx=Math.max(mx,o.n.s);growPat(mx);changed('roll','rack');}
+    else if(D.k==='size'||D.k==='move'){if(D.k==='size'&&D.orig[0]){R.len=D.orig[0].n.l;const n0=D.orig[0].n;if(n0.b&&n0.b!==D.orig[0].b0&&E&&!T.playing){const ch=selCh();E.note(ch,n0.p,AC.currentTime+.01,Math.min(2.5,Math.max(.25,n0.l*stepDur())),n0.v||.8,{bend:n0.b});}}let mx=0;for(const o of D.orig)mx=Math.max(mx,o.n.s);growPat(mx);changed('roll','rack');}
   };
   rollCv.addEventListener('pointerup',end);rollCv.addEventListener('pointercancel',end);
   rollCv.addEventListener('dblclick',e=>{if(R.tool!=='draw')return;const q=rollPt(e),n=q.px>=KEYW&&q.py>=RUL?hitNote(q):null;if(n){removeNote(n);changed('roll','rack');}});
