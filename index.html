@@ -1512,13 +1512,15 @@ function trimBox(ch,d){
     for(let x=0;x<W;x++){let lo=0,hi=0;for(let i=x*n,e=Math.min(D.length,i+n);i<e;i+=Math.max(1,n>>6)){const v=D[i];if(v<lo)lo=v;if(v>hi)hi=v;}g.fillStyle=x>=a&&x<=b?ch.color:'rgba(255,255,255,.2)';g.fillRect(x,H/2-hi*H/2,1,Math.max(1,(hi-lo)*H/2));}
     g.fillStyle='#fff';g.fillRect(a,0,2,H);g.fillRect(Math.min(W-2,b),0,2,H);
     info.textContent='쓰는 길이 '+(dur*(ch.sen-ch.sst)/100).toFixed(2)+'초 / 전체 '+dur.toFixed(2)+'초';};
+  const hear=()=>{ensureAudio();if(!E)return;E.note(ch,ch.root||60,AC.currentTime+.02,Math.min(30,dur),.85,{});};
   const fix=k=>{if(ch.sen-ch.sst<1){if(k==='sst')ch.sst=ch.sen-1;else ch.sen=ch.sst+1;}};
   const mk=(label,key,tip)=>{const el=sl(label,ch,key,0,100,.5,v=>(dur*v/100).toFixed(2)+'초',tip),inp=el.querySelector('input');
     inp.addEventListener('input',()=>{fix(key);if(+inp.value!==ch[key]){inp.value=ch[key];rfill(inp);el.querySelector('output').textContent=(dur*ch[key]/100).toFixed(2)+'초';}draw();});
-    inp.addEventListener('change',()=>{if(E&&!T.playing)E.note(ch,ch.root||60,AC.currentTime+.01,Math.min(4,dur),.8);});return el;};
+    inp.addEventListener('change',()=>{if(!T.playing)hear();});return el;};
   const bx=h('fieldset',null,h('legend',{text:'소리 길이 (자르기)'}),cv,
     mk('시작','sst','시작: 소리 앞부분을 잘라내요. 놓으면 잘린 소리를 들려줘요'),
     mk('끝','sen','끝: 소리 뒷부분을 잘라 짧게 만들어요. 놓으면 잘린 소리를 들려줘요'),
+    h('button',{class:'pri',text:'▶ 들어보기','data-tip':'지금 자른 구간을 그대로 들려줘요',onclick:hear}),
     h('div',{class:'acts'},info,h('button',{text:'처음대로',onclick:()=>{snap();ch.sst=0;ch.sen=100;changed('panel');}})));
   draw();return bx;
 }
