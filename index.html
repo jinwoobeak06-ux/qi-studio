@@ -452,7 +452,8 @@ canvas.wave{width:100%;height:60px;border-radius:8px;background:rgba(0,0,0,.42);
 .pcode{justify-self:start;padding:10px 22px;border-radius:14px;font:700 34px/1 var(--body);letter-spacing:8px;color:var(--ink);background:rgba(0,0,0,.36);box-shadow:inset 0 2px 6px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.08);-webkit-user-select:text;user-select:text}
 #bParty.live{color:#2a1a00;font-weight:700;border-color:transparent;background:linear-gradient(180deg,#d7f5cf,#86c97a 55%,#4f9a43)}
 
-.imgwin{position:fixed;z-index:28;display:grid;grid-template-rows:auto minmax(0,1fr);min-width:120px;min-height:100px;max-width:96vw;max-height:92vh;border-radius:16px;overflow:hidden;resize:both}
+.imgwin{position:fixed;z-index:28;display:grid;grid-template-rows:auto minmax(0,1fr);min-width:120px;min-height:100px;border-radius:16px;overflow:hidden}
+.imgwin .grip{position:absolute;right:0;bottom:0;width:26px;height:26px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 50%,rgba(255,255,255,.55) 50%,rgba(255,255,255,.55) 58%,transparent 58%,transparent 68%,rgba(255,255,255,.55) 68%,rgba(255,255,255,.55) 76%,transparent 76%)}
 .imgwin header{display:flex;align-items:center;gap:6px;padding:5px 6px 5px 12px;cursor:grab;touch-action:none;border-bottom:1px solid rgba(255,255,255,.1)}
 .imgwin header .icb{height:28px;min-width:30px;font-size:12px}
 .imgwin img{display:block;width:100%;height:100%;object-fit:contain;background:rgba(0,0,0,.35);pointer-events:none;-webkit-user-drag:none}
@@ -2939,21 +2940,30 @@ function initParty(){
 const IMG={win:null,url:'',st:{x:null,y:120,w:280,h:280}};
 function imgSave(){try{localStorage.setItem('kungjjak.imgwin',JSON.stringify(IMG.st));}catch(e){}}
 function imgPick(){const f=h('input',{type:'file',accept:'image/*'});f.onchange=()=>{const file=f.files[0];if(!file)return;if(file.size>2e7){toast('이미지가 너무 커요 (20MB까지)');return;}
-  file.arrayBuffer().then(b=>{const v={name:file.name,type:file.type||'image/png',u8:new Uint8Array(b)};idbPut('__sideimg',v);IMG.st.hidden=false;imgShow(v);toast('이미지를 띄웠어요. 위쪽 띠를 잡고 옮기고, 오른쪽 아래 모서리를 끌어 크기를 바꿔요');});};f.click();}
+  file.arrayBuffer().then(b=>{const v={name:file.name,type:file.type||'image/png',u8:new Uint8Array(b)};idbPut('__sideimg',v);IMG.st.hidden=false;imgShow(v);toast('이미지를 띄웠어요. 위쪽 띠를 잡고 옮기고, + − 버튼이나 오른쪽 아래 모서리로 크기를 바꿔요');});};f.click();}
 function imgShow(v){
   if(IMG.win)IMG.win.remove();if(IMG.url)URL.revokeObjectURL(IMG.url);
   IMG.url=URL.createObjectURL(new Blob([v.u8],{type:v.type}));const st=IMG.st,W=innerWidth,H=innerHeight;
-  st.w=clamp(st.w||280,120,W-20);st.h=clamp(st.h||280,100,H-20);if(st.x==null)st.x=W-st.w-24;st.x=clamp(st.x,0,W-60);st.y=clamp(st.y,0,H-40);
+  st.w=clamp(st.w||280,120,W);st.h=clamp(st.h||280,100,H);if(st.x==null)st.x=W-st.w-24;st.x=clamp(st.x,0,W-60);st.y=clamp(st.y,0,H-40);
   const head=h('header',null,h('span',{class:'cwtitle',text:v.name||'이미지'}),h('span',{style:'flex:1'}),
+    h('button',{class:'icb','aria-label':'작게',text:'−','data-tip':'이미지를 작게',onclick:()=>size(1/1.3)}),
+    h('button',{class:'icb','aria-label':'크게',text:'+','data-tip':'이미지를 크게',onclick:()=>size(1.3)}),
+    h('button',{class:'icb','aria-label':'화면 가득',text:'⛶','data-tip':'화면에 가득 차게 / 원래 크기로',onclick:()=>{if(st.full){Object.assign(st,st.full);st.full=null;}else{st.full={x:st.x,y:st.y,w:st.w,h:st.h};st.x=8;st.y=8;st.w=innerWidth-16;st.h=innerHeight-16;}put();}}),
     h('button',{class:'icb',text:'바꾸기',style:'width:auto;padding:0 10px','data-tip':'다른 이미지로 바꿔요',onclick:imgPick}),
     h('button',{class:'icb','aria-label':'이미지 지우기',text:'🗑','data-tip':'이미지를 지워요',onclick:()=>{idbPut('__sideimg',null);IMG.win.remove();IMG.win=null;toast('이미지를 지웠어요');imgBtn();}}),
     h('button',{class:'icb','aria-label':'숨기기',text:'✕','data-tip':'잠깐 숨겨요. 위쪽 이미지 버튼을 누르면 다시 나와요',onclick:()=>{st.hidden=true;imgSave();IMG.win.hidden=true;imgBtn();}}));
-  const w=IMG.win=h('div',{class:'imgwin glass',style:'left:'+st.x+'px;top:'+st.y+'px;width:'+st.w+'px;height:'+st.h+'px'},head,h('img',{src:IMG.url,alt:v.name||'띄워 둔 이미지',draggable:'false'}));
+  const grip=h('i',{class:'grip','data-tip':'끌어서 크기를 바꿔요'}),w=IMG.win=h('div',{class:'imgwin glass'},head,h('img',{src:IMG.url,alt:v.name||'띄워 둔 이미지',draggable:'false'}),grip);
+  const put=()=>{st.w=clamp(st.w,120,innerWidth);st.h=clamp(st.h,100,innerHeight);st.x=clamp(st.x,-st.w+60,innerWidth-60);st.y=clamp(st.y,0,innerHeight-40);w.style.cssText='left:'+st.x+'px;top:'+st.y+'px;width:'+st.w+'px;height:'+st.h+'px';imgSave();};
+  const size=f=>{st.full=null;const cx=st.x+st.w/2,cy=st.y+st.h/2;st.w=Math.round(st.w*f);st.h=Math.round(st.h*f);st.w=clamp(st.w,120,innerWidth);st.h=clamp(st.h,100,innerHeight);st.x=clamp(Math.round(cx-st.w/2),0,Math.max(0,innerWidth-st.w));st.y=clamp(Math.round(cy-st.h/2),0,Math.max(0,innerHeight-st.h));put();};
+  grip.addEventListener('pointerdown',e=>{e.preventDefault();st.full=null;const w0=st.w-e.clientX,h0=st.h-e.clientY;
+    const mv=ev=>{st.w=clamp(w0+ev.clientX,120,innerWidth);st.h=clamp(h0+ev.clientY,100,innerHeight);w.style.width=st.w+'px';w.style.height=st.h+'px';},
+      up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);removeEventListener('pointercancel',up);imgSave();};
+    addEventListener('pointermove',mv);addEventListener('pointerup',up);addEventListener('pointercancel',up);});
+  put();
   head.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;e.preventDefault();const dx=e.clientX-st.x,dy=e.clientY-st.y;
     const mv=ev=>{st.x=clamp(ev.clientX-dx,-st.w+60,innerWidth-60);st.y=clamp(ev.clientY-dy,0,innerHeight-40);w.style.left=st.x+'px';w.style.top=st.y+'px';},
       up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);removeEventListener('pointercancel',up);imgSave();};
     addEventListener('pointermove',mv);addEventListener('pointerup',up);addEventListener('pointercancel',up);});
-  if(window.ResizeObserver)new ResizeObserver(()=>{if(!w.isConnected||w.hidden)return;const r=w.getBoundingClientRect();if(r.width>50){st.w=Math.round(r.width);st.h=Math.round(r.height);imgSave();}}).observe(w);
   w.hidden=!!st.hidden;document.body.append(w);imgSave();imgBtn();
 }
 function imgBtn(){const b=$('#bImg');if(b)b.classList.toggle('on',!!(IMG.win&&!IMG.win.hidden));}
