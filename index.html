@@ -454,9 +454,14 @@ canvas.wave{width:100%;height:60px;border-radius:8px;background:rgba(0,0,0,.42);
 
 .imgwin{position:fixed;z-index:28;display:grid;grid-template-rows:auto minmax(0,1fr);min-width:120px;min-height:100px;border-radius:16px;overflow:hidden}
 .imgwin .grip{position:absolute;right:0;bottom:0;width:26px;height:26px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 50%,rgba(255,255,255,.55) 50%,rgba(255,255,255,.55) 58%,transparent 58%,transparent 68%,rgba(255,255,255,.55) 68%,rgba(255,255,255,.55) 76%,transparent 76%)}
-.imgwin header{display:flex;align-items:center;gap:6px;padding:5px 6px 5px 12px;cursor:grab;touch-action:none;border-bottom:1px solid rgba(255,255,255,.1)}
+.imgwin header{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:5px 6px 5px 12px;cursor:grab;touch-action:none;border-bottom:1px solid rgba(255,255,255,.1)}
 .imgwin header .icb{height:28px;min-width:30px;font-size:12px}
-.imgwin img{display:block;width:100%;height:100%;object-fit:contain;background:rgba(0,0,0,.35);pointer-events:none;-webkit-user-drag:none}
+.imgwin{grid-template-columns:minmax(0,1fr)}
+.imgwin .cwtitle{max-width:120px}
+.imgwin.keep img{object-fit:contain}
+.imgwin .gripx{position:absolute;right:0;top:40px;bottom:26px;width:9px;cursor:ew-resize;touch-action:none}
+.imgwin .gripy{position:absolute;left:0;right:26px;bottom:0;height:9px;cursor:ns-resize;touch-action:none}
+.imgwin img{display:block;width:100%;height:100%;min-height:0;object-fit:fill;background:rgba(0,0,0,.35);pointer-events:none;-webkit-user-drag:none}
 
 .pcur{position:fixed;left:0;top:0;z-index:70;pointer-events:none;display:flex;align-items:flex-start;gap:2px;transition:transform .08s linear;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
 .pcur span{margin-top:14px;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap;color:#10131a;background:currentColor;-webkit-text-fill-color:#10131a}
@@ -2078,6 +2083,9 @@ function drawRoll(){
   if(R.sel.size>1){ // 고른 음들을 감싸는 주황 테두리
     let a=1e9,b=-1e9,lo=999,hi=-999;for(const n of R.sel){a=Math.min(a,n.s);b=Math.max(b,n.s+n.l);lo=Math.min(lo,n.p);hi=Math.max(hi,n.p);}
     g.strokeStyle='#ffb224';g.lineWidth=2;g.shadowColor='#ffb224';g.shadowBlur=0;rr(g,KEYW+a*z-sx-5,RUL+(HI-hi)*rh-sy-4,(b-a)*z+10,(hi-lo+1)*rh+8,8);g.stroke();g.shadowBlur=0;g.lineWidth=1;
+    // 테두리 손잡이: 좌우를 끌면 안의 음들이 옆으로 늘고 줄고, 위아래를 끌면 음 높이 간격이 벌어지고 좁아진다
+    const xL=KEYW+a*z-sx-5,xR=KEYW+b*z-sx+5,yT=RUL+(HI-hi)*rh-sy-4,yB=yT+(hi-lo+1)*rh+8,sq=(x,y)=>{g.fillStyle='#ffb224';g.fillRect(x-5,y-5,10,10);g.strokeStyle='#201400';g.strokeRect(x-4.5,y-4.5,9,9);};
+    sq(xL,(yT+yB)/2);sq(xR,(yT+yB)/2);if(hi>lo){sq((xL+xR)/2,yT);sq((xL+xR)/2,yB);}
   }
   const D=R.drag;if(D&&D.k==='band'){const x=KEYW+Math.min(D.x0,D.x1)*z-sx,y=RUL+(HI-Math.max(D.p0,D.p1))*rh-sy,w=Math.abs(D.x1-D.x0)*z,hh=(Math.abs(D.p1-D.p0)+1)*rh;g.fillStyle='rgba(90,170,255,.28)';g.fillRect(x,y,w,hh);g.strokeStyle='#5ab0ff';g.strokeRect(x+.5,y+.5,w,hh);}
   const pp=rollPlayPos();if(pp>=0){const x=KEYW+pp*z-sx;if(x>=KEYW){g.shadowColor='#19f0ff';g.shadowBlur=0;g.fillStyle='#dffdff';g.fillRect(x-.75,RUL,1.5,H);g.shadowBlur=0;}}
@@ -2125,6 +2133,12 @@ function drawLane(){
     g.fillStyle=sel?'#fff':lite;g.beginPath();g.arc(x+.5,y-1.2,2,0,7);g.fill();
   }
 }
+function rollSelBox(){if(R.sel.size<2)return null;let a=1e9,b=-1e9,lo=999,hi=-999;for(const n of R.sel){a=Math.min(a,n.s);b=Math.max(b,n.s+n.l);lo=Math.min(lo,n.p);hi=Math.max(hi,n.p);}return {a,b,lo,hi};}
+function selEdge(q){ // 고른 음들을 감싼 테두리의 어느 변을 잡았나
+  const B=rollSelBox();if(!B||(R.tool!=='draw'&&R.tool!=='select'))return null;const z=R.zoom,rh=R.rowH,sx=rollSc.scrollLeft,sy=rollSc.scrollTop,xL=KEYW+B.a*z-sx-5,xR=KEYW+B.b*z-sx+5,yT=RUL+(HI-B.hi)*rh-sy-4,yB=yT+(B.hi-B.lo+1)*rh+8;
+  const inY=q.py>=yT-5&&q.py<=yB+5,inX=q.px>=xL-5&&q.px<=xR+5;
+  return inY&&Math.abs(q.px-xR)<=6?'R':inY&&Math.abs(q.px-xL)<=6?'L':B.hi>B.lo&&inX&&Math.abs(q.py-yT)<=5?'T':B.hi>B.lo&&inX&&Math.abs(q.py-yB)<=5?'B':null;
+}
 function rollPt(e){const r=rollCv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;return{px,py,step:(px-KEYW+rollSc.scrollLeft)/R.zoom,pitch:HI-Math.floor((py-RUL+rollSc.scrollTop)/R.rowH)};}
 const fl=(v,s)=>Math.floor(v/s+1e-6)*s,rd=(v,s)=>Math.round(v/s)*s,minLen=()=>Math.max(R.snap,.125);
 function growPat(startPos){ // 패턴 끝 뒤에 음이 놓이면 패턴을 그만큼 늘린다
@@ -2162,6 +2176,8 @@ function initRoll(){
     if(q.py<RUL){if(q.px>=KEYW)seek(clamp(fl(q.step,1),0,L-1));return;}
     if(q.pitch<LO||q.pitch>HI)return;
     if(q.px<KEYW){R.drag={k:'key',p:q.pitch,V:liveOn(q.pitch)};drawRoll();return;}
+    {const side=selEdge(q);if(side&&e.button===0&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey){snap();const B=rollSelBox();
+      R.drag={k:'scale',side,B,orig:[...R.sel].map(m=>{bentOf(m);return {n:m,s:m.s,l:m.l,p:m.p,k:m.pts?m.k:null,pts:m.pts?m.pts.map(a=>a.slice()):null};})};return;}}
     const n=hitNote(q);
     if(R.tool==='erase'||e.button===2){snap();R.drag={k:'erase'};if(n){removeNote(n);changed('roll','rack');}return;}
     if(R.tool==='hand')return;
@@ -2199,7 +2215,7 @@ function initRoll(){
   });
   rollCv.addEventListener('pointermove',e=>{
     const D=R.drag,q=rollPt(e);
-    if(!D){if(e.pointerType==='mouse'){const n=q.px>=KEYW&&q.py>=RUL?hitNote(q):null;rollCv.style.cursor=R.tool==='brush'?'crosshair':R.tool==='cut'?(n?'col-resize':'default'):R.tool==='erase'||R.tool==='bend'?'crosshair':n?((n.s+n.l-q.step)*R.zoom<Math.min(8,n.l*R.zoom*.35)||(q.step-n.s)*R.zoom<Math.min(8,n.l*R.zoom*.3)?'ew-resize':'move'):'default';}return;}
+    if(!D){if(e.pointerType==='mouse'){const sd0=q.px>=KEYW&&q.py>=RUL?selEdge(q):null;if(sd0){rollCv.style.cursor=sd0==='L'||sd0==='R'?'ew-resize':'ns-resize';return;}const n=q.px>=KEYW&&q.py>=RUL?hitNote(q):null;rollCv.style.cursor=R.tool==='brush'?'crosshair':R.tool==='cut'?(n?'col-resize':'default'):R.tool==='erase'||R.tool==='bend'?'crosshair':n?((n.s+n.l-q.step)*R.zoom<Math.min(8,n.l*R.zoom*.35)||(q.step-n.s)*R.zoom<Math.min(8,n.l*R.zoom*.3)?'ew-resize':'move'):'default';}return;}
     if(D.k==='key'){const p=clamp(q.pitch,LO,HI);if(p!==D.p){liveOff(D.V);D.p=p;D.V=liveOn(p);drawRoll();}}
     else if(D.k==='erase'){const n=q.px>=KEYW?hitNote(q):null;if(n){removeNote(n);changed('roll','rack');}}
     else if(D.k==='band'){D.x1=q.step;D.p1=q.pitch;drawRoll();}
@@ -2215,6 +2231,12 @@ function initRoll(){
           n.k=o.pts0?o.k0:o.l;n.pts=(o.pts0||[]).map(a=>a.slice()).concat([[end,dp]]);n.l=end;D.bent=true;}
         else{const nl=Math.max(Math.min(minLen(),o.l),o.l+dl);if(o.pts0){const f=nl/o.l;n.k=o.k0*f;n.pts=o.pts0.map(a=>[a[0]*f,a[1]]);}else{delete n.k;delete n.pts;}n.l=nl;D.bent=false;}}
       drawRoll();}
+    else if(D.k==='scale'){const B=D.B,g=Math.max(R.snap,.25),w=B.b-B.a,r8=v=>Math.round(v*8)/8;
+      if(D.side==='R'||D.side==='L'){const edge=rd(q.step,g),f=Math.max(.05,(D.side==='R'?Math.max(B.a+g,edge)-B.a:B.b-Math.min(B.b-g,Math.max(0,edge)))/w);
+        for(const o of D.orig){const n=o.n;n.l=Math.max(.125,r8(o.l*f));n.s=Math.max(0,r8(D.side==='R'?B.a+(o.s-B.a)*f:B.b-(B.b-o.s)*f));if(o.pts){const ff=n.l/o.l;n.k=o.k*ff;n.pts=o.pts.map(a=>[a[0]*ff,a[1]]);}}}
+      else{const hgt=B.hi-B.lo,pp=clamp(q.pitch,LO,HI),f=D.side==='T'?(Math.max(B.lo,pp)-B.lo)/hgt:(B.hi-Math.min(B.hi,pp))/hgt;
+        for(const o of D.orig)o.n.p=clamp(Math.round(D.side==='T'?B.lo+(o.p-B.lo)*f:B.hi-(B.hi-o.p)*f),LO,HI);}
+      drawRoll();drawLane();}
     else if(D.k==='brush'){if(q.px>=KEYW){D.to(q.step,clamp(q.pitch,LO,HI));drawRoll();}}
     else if(D.k==='sizeL'){const ds=rd(q.step-D.x0,R.snap);
       for(const o of D.orig){const n=o.n;if(!o.cap){o.cap=1;bentOf(n);o.k0=n.pts?n.k:null;o.pts0=n.pts?n.pts.map(a=>a.slice()):null;}
@@ -2236,6 +2258,7 @@ function initRoll(){
       else if(D.pts0.length){const pts=D.pts0.slice(0,-1);if(pts.length){n.pts=pts;n.l=pts[pts.length-1][0];}else{n.l=D.k0;delete n.k;delete n.pts;}toast('마지막 꺾임을 지웠어요');}
       else toast('음을 누른 채 오른쪽으로 끌면 그 뒤로 이어서 위·아래로 꺾여요');
       growPat(n.s+n.l-1);changed('roll','rack');}
+    else if(D.k==='scale'){let mx=0;for(const o of D.orig)mx=Math.max(mx,o.n.s);growPat(mx);changed('roll','rack');}
     else if(D.k==='size'||D.k==='move'||D.k==='sizeL'){if(D.k==='size'&&D.orig[0]&&!bentOf(D.orig[0].n))R.len=D.orig[0].n.l;if(D.k==='size'&&D.bent&&D.orig[0]){const n0=D.orig[0].n;ensureAudio();if(!T.playing)E.note(selCh(),n0.p,AC.currentTime+.01,Math.min(4,n0.l*stepDur()),n0.v||.8,{path:notePath(n0,stepDur())});}let mx=0;for(const o of D.orig)mx=Math.max(mx,o.n.s);growPat(mx);changed('roll','rack');}
   };
   rollCv.addEventListener('pointerup',end);rollCv.addEventListener('pointercancel',end);
@@ -3033,14 +3056,15 @@ function imgShow(v){
     h('button',{class:'icb','aria-label':'작게',text:'−','data-tip':'이미지를 작게',onclick:()=>size(1/1.3)}),
     h('button',{class:'icb','aria-label':'크게',text:'+','data-tip':'이미지를 크게',onclick:()=>size(1.3)}),
     h('button',{class:'icb','aria-label':'화면 가득',text:'⛶','data-tip':'화면에 가득 차게 / 원래 크기로',onclick:()=>{if(st.full){Object.assign(st,st.full);st.full=null;}else{st.full={x:st.x,y:st.y,w:st.w,h:st.h};st.x=8;st.y=8;st.w=innerWidth-16;st.h=innerHeight-16;}put();}}),
+    h('button',{class:'icb'+(st.keep?' on':''),text:'비율','data-tip':'켜면 사진의 원래 비율을 지켜요. 끄면 창 크기에 맞춰 가로·세로가 따로 늘어나요',style:'width:auto;padding:0 8px',onclick:e=>{st.keep=!st.keep;w.classList.toggle('keep',!!st.keep);e.currentTarget.classList.toggle('on',!!st.keep);imgSave();}}),
     h('button',{class:'icb',text:'바꾸기',style:'width:auto;padding:0 10px','data-tip':'다른 이미지로 바꿔요',onclick:imgPick}),
     h('button',{class:'icb danger',text:'지우기',style:'width:auto;padding:0 10px','data-tip':'이 사진을 지워요 (창도 닫혀요)',onclick:()=>{idbPut('__sideimg',null);IMG.win.remove();IMG.win=null;toast('이미지를 지웠어요');imgBtn();}}),
     h('button',{class:'icb','aria-label':'숨기기',text:'✕','data-tip':'잠깐 숨겨요. 위쪽 이미지 버튼을 누르면 다시 나와요',onclick:()=>{st.hidden=true;imgSave();IMG.win.hidden=true;imgBtn();}}));
-  const grip=h('i',{class:'grip','data-tip':'끌어서 크기를 바꿔요'}),w=IMG.win=h('div',{class:'imgwin glass'},head,h('img',{src:IMG.url,alt:v.name||'띄워 둔 이미지',draggable:'false'}),grip);
+  const grip=h('i',{class:'grip','data-tip':'끌어서 가로·세로를 함께 바꿔요'}),gx=h('i',{class:'gripx','data-tip':'끌어서 가로만 바꿔요'}),gy=h('i',{class:'gripy','data-tip':'끌어서 세로만 바꿔요'}),w=IMG.win=h('div',{class:'imgwin glass'+(st.keep?' keep':'')},head,h('img',{src:IMG.url,alt:v.name||'띄워 둔 이미지',draggable:'false'}),gx,gy,grip);
   const put=()=>{st.w=clamp(st.w,120,innerWidth);st.h=clamp(st.h,100,innerHeight);st.x=clamp(st.x,-st.w+60,innerWidth-60);st.y=clamp(st.y,0,innerHeight-40);w.style.cssText='left:'+st.x+'px;top:'+st.y+'px;width:'+st.w+'px;height:'+st.h+'px';imgSave();};
   const size=f=>{st.full=null;const cx=st.x+st.w/2,cy=st.y+st.h/2;st.w=Math.round(st.w*f);st.h=Math.round(st.h*f);st.w=clamp(st.w,120,innerWidth);st.h=clamp(st.h,100,innerHeight);st.x=clamp(Math.round(cx-st.w/2),0,Math.max(0,innerWidth-st.w));st.y=clamp(Math.round(cy-st.h/2),0,Math.max(0,innerHeight-st.h));put();};
-  grip.addEventListener('pointerdown',e=>{e.preventDefault();st.full=null;const w0=st.w-e.clientX,h0=st.h-e.clientY;
-    const mv=ev=>{st.w=clamp(w0+ev.clientX,120,innerWidth);st.h=clamp(h0+ev.clientY,100,innerHeight);w.style.width=st.w+'px';w.style.height=st.h+'px';},
+  for(const [el,ax] of [[grip,'xy'],[gx,'x'],[gy,'y']])el.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();st.full=null;const w0=st.w-e.clientX,h0=st.h-e.clientY;
+    const mv=ev=>{if(ax!=='y')st.w=clamp(w0+ev.clientX,120,innerWidth);if(ax!=='x')st.h=clamp(h0+ev.clientY,100,innerHeight);w.style.width=st.w+'px';w.style.height=st.h+'px';},
       up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);removeEventListener('pointercancel',up);imgSave();};
     addEventListener('pointermove',mv);addEventListener('pointerup',up);addEventListener('pointercancel',up);});
   put();
