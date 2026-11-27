@@ -552,6 +552,7 @@ canvas.wave{width:100%;height:60px;border-radius:8px;background:rgba(0,0,0,.42);
       <select id="rCh" aria-label="채널" data-tip="피아노 롤에서 고칠 채널"></select>
       <div class="seg" id="rTools">
         <button data-tool="draw" data-tip="그리기: 빈 곳을 누르면 음이 생기고, 옆으로 끌면 길어져요. 음의 앞쪽 끝이나 뒤쪽 끝을 잡고 끌면 그쪽에서 줄이고 늘려요. 음 끝을 잡고 Shift를 누른 채 위나 아래로 끌면 그 뒤로 이어서 꺾여요">그리기</button>
+        <button data-tool="brush" data-tip="붓: 누른 채 쭉 끌면 지나간 칸마다 음이 줄줄이 찍혀요. 위아래로 움직이면 음 높이도 따라가요. 이미 있는 음에서 끌기 시작하면 지나간 음이 지워져요">붓</button>
         <button data-tool="erase" data-tip="지우기: 음을 누르거나 문지르면 지워져요 (마우스 오른쪽 버튼도 같아요)">지우기</button>
         <button data-tool="select" data-tip="선택: 끌어서 여러 음을 고른 뒤 옮기거나 지워요">선택</button>
         <button data-tool="cut" data-tip="자르기: 음을 누르면 누른 자리에서 둘로 잘라요. 자른 뒤 한쪽만 지우거나 옮길 수 있어요">자르기</button>
@@ -2156,6 +2157,13 @@ function initRoll(){
     const n=hitNote(q);
     if(R.tool==='erase'||e.button===2){snap();R.drag={k:'erase'};if(n){removeNote(n);changed('roll','rack');}return;}
     if(R.tool==='hand')return;
+    if(R.tool==='brush'){
+      snap();const g=Math.max(R.snap,.25),D=R.drag={k:'brush',erase:!!n,g,ls:null,lp:null,mx:0,n:0};
+      D.cell=(st,p)=>{p=clamp(R.lock&&!D.erase?snapScale(p):p,LO,HI);const a=rollNotes(),hitI=a.findIndex(o=>o.p===p&&o.s<st+g-1e-6&&o.s+o.l>st+1e-6);
+        if(D.erase){if(hitI>=0){R.sel.delete(a[hitI]);a.splice(hitI,1);D.n++;}}
+        else if(hitI<0&&st<L+EXTRA){a.push({s:st,l:g,p,v:.8});D.n++;D.mx=Math.max(D.mx,st);if(p!==D.pp){D.pp=p;previewNote(p,.8);}}};
+      D.to=(st,p)=>{st=Math.max(0,fl(st,g));if(D.ls==null){D.cell(st,p);}else{const k=Math.round(Math.abs(st-D.ls)/g),dir=st>=D.ls?1:-1;if(!k&&p!==D.lp&&D.erase)D.cell(st,p);for(let i=1;i<=k;i++)D.cell(D.ls+dir*i*g,Math.round(D.lp+(p-D.lp)*i/k));}D.ls=st;D.lp=p;};
+      R.sel.clear();D.to(q.step,q.pitch);drawRoll();return;}
     if(R.tool==='cut'){
       if(!n){toast('자를 음을 눌러 주세요');return;}
       const g=Math.min(R.snap,1)||.25,off=clamp(rd(q.step-n.s,g),g,n.l-g);if(n.l<2*g-1e-6||off<=0||off>=n.l){toast('이 음은 더 자를 수 없어요 (칸 크기를 더 잘게 바꿔 보세요)');return;}
@@ -2183,7 +2191,7 @@ function initRoll(){
   });
   rollCv.addEventListener('pointermove',e=>{
     const D=R.drag,q=rollPt(e);
-    if(!D){if(e.pointerType==='mouse'){const n=q.px>=KEYW&&q.py>=RUL?hitNote(q):null;rollCv.style.cursor=R.tool==='cut'?(n?'col-resize':'default'):R.tool==='erase'||R.tool==='bend'?'crosshair':n?((n.s+n.l-q.step)*R.zoom<Math.min(8,n.l*R.zoom*.35)||(q.step-n.s)*R.zoom<Math.min(8,n.l*R.zoom*.3)?'ew-resize':'move'):'default';}return;}
+    if(!D){if(e.pointerType==='mouse'){const n=q.px>=KEYW&&q.py>=RUL?hitNote(q):null;rollCv.style.cursor=R.tool==='brush'?'crosshair':R.tool==='cut'?(n?'col-resize':'default'):R.tool==='erase'||R.tool==='bend'?'crosshair':n?((n.s+n.l-q.step)*R.zoom<Math.min(8,n.l*R.zoom*.35)||(q.step-n.s)*R.zoom<Math.min(8,n.l*R.zoom*.3)?'ew-resize':'move'):'default';}return;}
     if(D.k==='key'){const p=clamp(q.pitch,LO,HI);if(p!==D.p){liveOff(D.V);D.p=p;D.V=liveOn(p);drawRoll();}}
     else if(D.k==='erase'){const n=q.px>=KEYW?hitNote(q):null;if(n){removeNote(n);changed('roll','rack');}}
     else if(D.k==='band'){D.x1=q.step;D.p1=q.pitch;drawRoll();}
@@ -2199,6 +2207,7 @@ function initRoll(){
           n.k=o.pts0?o.k0:o.l;n.pts=(o.pts0||[]).map(a=>a.slice()).concat([[end,dp]]);n.l=end;D.bent=true;}
         else{const nl=Math.max(Math.min(minLen(),o.l),o.l+dl);if(o.pts0){const f=nl/o.l;n.k=o.k0*f;n.pts=o.pts0.map(a=>[a[0]*f,a[1]]);}else{delete n.k;delete n.pts;}n.l=nl;D.bent=false;}}
       drawRoll();}
+    else if(D.k==='brush'){if(q.px>=KEYW){D.to(q.step,clamp(q.pitch,LO,HI));drawRoll();}}
     else if(D.k==='sizeL'){const ds=rd(q.step-D.x0,R.snap);
       for(const o of D.orig){const n=o.n;if(!o.cap){o.cap=1;bentOf(n);o.k0=n.pts?n.k:null;o.pts0=n.pts?n.pts.map(a=>a.slice()):null;}
         const room=(o.pts0?o.k0:o.l)-Math.min(minLen(),o.l),d=clamp(ds,-o.s,Math.max(0,room));n.s=o.s+d;n.l=o.l-d;if(o.pts0){n.k=o.k0-d;n.pts=o.pts0.map(a=>[a[0]-d,a[1]]);}}
@@ -2213,6 +2222,7 @@ function initRoll(){
     if(D.k==='key'){liveOff(D.V);drawRoll();}
     else if(D.k==='band'){const a=Math.min(D.x0,D.x1),b=Math.max(D.x0,D.x1),lo=Math.min(D.p0,D.p1),hi=Math.max(D.p0,D.p1);for(const n of pickNotes())if(n.s<b&&n.s+n.l>a&&n.p>=lo&&n.p<=hi)R.sel.add(n);touch('roll');
       if(R.sel.size&&e&&e.clientX!=null&&(Math.abs(e.clientX-D.cx)>6||Math.abs(e.clientY-D.cy)>6)){const x=e.clientX,y=e.clientY;menu({getBoundingClientRect:()=>({left:x,right:x,top:y,bottom:y})},['고른 음 '+R.sel.size+'개',['지우기 (Delete)',()=>rollTool('del')],['복사 (Ctrl+C)',rollCopy],['바로 뒤에 복제 (Ctrl+D)',rollDup],['한 옥타브 올리기',()=>rollTool('up12')],['한 옥타브 내리기',()=>rollTool('dn12')],['고르기 풀기',()=>{R.sel.clear();touch('roll');}]]);}}
+    else if(D.k==='brush'){if(!D.erase)growPat(D.mx);changed('roll','rack');if(D.n>1)toast(D.erase?D.n+'개 음을 지웠어요':D.n+'개 음을 찍었어요');}
     else if(D.k==='bend'){const n=D.n;
       if(D.moved){ensureAudio();if(!T.playing)E.note(selCh(),n.p,AC.currentTime+.01,Math.min(4,n.l*stepDur()),n.v||.8,{path:notePath(n,stepDur())});}
       else if(D.pts0.length){const pts=D.pts0.slice(0,-1);if(pts.length){n.pts=pts;n.l=pts[pts.length-1][0];}else{n.l=D.k0;delete n.k;delete n.pts;}toast('마지막 꺾임을 지웠어요');}
