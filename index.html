@@ -459,8 +459,12 @@ canvas.wave{width:100%;height:60px;border-radius:8px;background:rgba(0,0,0,.42);
 .imgwin{grid-template-columns:minmax(0,1fr)}
 .imgwin .cwtitle{max-width:120px}
 .imgwin.keep img{object-fit:contain}
-.imgwin .gripx{position:absolute;right:0;top:40px;bottom:26px;width:9px;cursor:ew-resize;touch-action:none}
-.imgwin .gripy{position:absolute;left:0;right:26px;bottom:0;height:9px;cursor:ns-resize;touch-action:none}
+.imgwin .gripx{position:absolute;right:0;top:40px;bottom:26px;width:14px;cursor:ew-resize;touch-action:none}
+.imgwin .gripy{position:absolute;left:0;right:26px;bottom:0;height:14px;cursor:ns-resize;touch-action:none}
+.imgwin .gripx::after,.imgwin .gripy::after{content:"";position:absolute;border-radius:3px;background:rgba(255,255,255,.75);box-shadow:0 0 0 1px rgba(0,0,0,.45)}
+.imgwin .gripx::after{right:3px;top:calc(50% - 22px);width:5px;height:44px}
+.imgwin .gripy::after{bottom:3px;left:calc(50% - 22px);height:5px;width:44px}
+.isz{display:inline-flex;align-items:center;gap:2px}.isz small{font-size:10.5px;margin-right:1px}.imgwin header .isz .icb{min-width:24px;width:24px}
 .imgwin img{display:block;width:100%;height:100%;min-height:0;object-fit:fill;background:rgba(0,0,0,.35);pointer-events:none;-webkit-user-drag:none}
 
 .pcur{position:fixed;left:0;top:0;z-index:70;pointer-events:none;display:flex;align-items:flex-start;gap:2px;transition:transform .08s linear;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
@@ -1836,7 +1840,7 @@ function renderPanel(){
       sl('옥타브',ch,'oct',-3,3,1,sgn,'한 옥타브(12반음)씩 올리거나 내려요'),
       sl('반음',ch,'semi',-12,12,1,sgn,'반음씩 올리거나 내려요'),
       sl('미세 조율',ch,'fine',-100,100,1,v=>sgn(v)+'c','아주 조금 높이거나 낮춰요 (100 = 반음)')),
-    d&&d.e==='s'&&d.buf?trimBox(ch,d):null,
+    d&&d.e==='s'&&d.buf?trimBox(ch,d):'',
     h('fieldset',null,h('legend',{text:'소리 모양'}),
       sl('굵기',ch,'thick',0,100,1,pct,'소리 굵기: 올릴수록 소리를 여러 겹 쌓고 저음을 더해 두껍게 해요'),
       sl('밝기',ch,'cut',5,100,1,pct,'밝기: 낮추면 먹먹하고 어두운 소리가 돼요'),
@@ -3053,8 +3057,9 @@ function imgShow(v){
   IMG.url=URL.createObjectURL(new Blob([v.u8],{type:v.type}));const st=IMG.st,W=innerWidth,H=innerHeight;
   st.w=clamp(st.w||280,120,W);st.h=clamp(st.h||280,100,H);if(st.x==null)st.x=W-st.w-24;st.x=clamp(st.x,0,W-60);st.y=clamp(st.y,0,H-40);
   const head=h('header',null,h('span',{class:'cwtitle',text:v.name||'이미지'}),h('span',{style:'flex:1'}),
-    h('button',{class:'icb','aria-label':'작게',text:'−','data-tip':'이미지를 작게',onclick:()=>size(1/1.3)}),
-    h('button',{class:'icb','aria-label':'크게',text:'+','data-tip':'이미지를 크게',onclick:()=>size(1.3)}),
+    h('span',{class:'isz'},h('small',{text:'가로'}),h('button',{class:'icb','aria-label':'가로 줄이기',text:'−','data-tip':'가로를 줄여요',onclick:()=>size(1/1.25,1)}),h('button',{class:'icb','aria-label':'가로 늘리기',text:'+','data-tip':'가로를 늘려요',onclick:()=>size(1.25,1)})),
+    h('span',{class:'isz'},h('small',{text:'세로'}),h('button',{class:'icb','aria-label':'세로 줄이기',text:'−','data-tip':'세로를 줄여요',onclick:()=>size(1,1/1.25)}),h('button',{class:'icb','aria-label':'세로 늘리기',text:'+','data-tip':'세로를 늘려요',onclick:()=>size(1,1.25)})),
+    h('span',{class:'isz'},h('small',{text:'전체'}),h('button',{class:'icb','aria-label':'작게',text:'−','data-tip':'가로·세로를 함께 줄여요',onclick:()=>size(1/1.25,1/1.25)}),h('button',{class:'icb','aria-label':'크게',text:'+','data-tip':'가로·세로를 함께 늘려요',onclick:()=>size(1.25,1.25)})),
     h('button',{class:'icb','aria-label':'화면 가득',text:'⛶','data-tip':'화면에 가득 차게 / 원래 크기로',onclick:()=>{if(st.full){Object.assign(st,st.full);st.full=null;}else{st.full={x:st.x,y:st.y,w:st.w,h:st.h};st.x=8;st.y=8;st.w=innerWidth-16;st.h=innerHeight-16;}put();}}),
     h('button',{class:'icb'+(st.keep?' on':''),text:'비율','data-tip':'켜면 사진의 원래 비율을 지켜요. 끄면 창 크기에 맞춰 가로·세로가 따로 늘어나요',style:'width:auto;padding:0 8px',onclick:e=>{st.keep=!st.keep;w.classList.toggle('keep',!!st.keep);e.currentTarget.classList.toggle('on',!!st.keep);imgSave();}}),
     h('button',{class:'icb',text:'바꾸기',style:'width:auto;padding:0 10px','data-tip':'다른 이미지로 바꿔요',onclick:imgPick}),
@@ -3062,7 +3067,7 @@ function imgShow(v){
     h('button',{class:'icb','aria-label':'숨기기',text:'✕','data-tip':'잠깐 숨겨요. 위쪽 이미지 버튼을 누르면 다시 나와요',onclick:()=>{st.hidden=true;imgSave();IMG.win.hidden=true;imgBtn();}}));
   const grip=h('i',{class:'grip','data-tip':'끌어서 가로·세로를 함께 바꿔요'}),gx=h('i',{class:'gripx','data-tip':'끌어서 가로만 바꿔요'}),gy=h('i',{class:'gripy','data-tip':'끌어서 세로만 바꿔요'}),w=IMG.win=h('div',{class:'imgwin glass'+(st.keep?' keep':'')},head,h('img',{src:IMG.url,alt:v.name||'띄워 둔 이미지',draggable:'false'}),gx,gy,grip);
   const put=()=>{st.w=clamp(st.w,120,innerWidth);st.h=clamp(st.h,100,innerHeight);st.x=clamp(st.x,-st.w+60,innerWidth-60);st.y=clamp(st.y,0,innerHeight-40);w.style.cssText='left:'+st.x+'px;top:'+st.y+'px;width:'+st.w+'px;height:'+st.h+'px';imgSave();};
-  const size=f=>{st.full=null;const cx=st.x+st.w/2,cy=st.y+st.h/2;st.w=Math.round(st.w*f);st.h=Math.round(st.h*f);st.w=clamp(st.w,120,innerWidth);st.h=clamp(st.h,100,innerHeight);st.x=clamp(Math.round(cx-st.w/2),0,Math.max(0,innerWidth-st.w));st.y=clamp(Math.round(cy-st.h/2),0,Math.max(0,innerHeight-st.h));put();};
+  const size=(fx,fy)=>{st.full=null;const cx=st.x+st.w/2,cy=st.y+st.h/2;st.w=Math.round(st.w*fx);st.h=Math.round(st.h*fy);st.w=clamp(st.w,120,innerWidth);st.h=clamp(st.h,100,innerHeight);st.x=clamp(Math.round(cx-st.w/2),0,Math.max(0,innerWidth-st.w));st.y=clamp(Math.round(cy-st.h/2),0,Math.max(0,innerHeight-st.h));put();};
   for(const [el,ax] of [[grip,'xy'],[gx,'x'],[gy,'y']])el.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();st.full=null;const w0=st.w-e.clientX,h0=st.h-e.clientY;
     const mv=ev=>{if(ax!=='y')st.w=clamp(w0+ev.clientX,120,innerWidth);if(ax!=='x')st.h=clamp(h0+ev.clientY,100,innerHeight);w.style.width=st.w+'px';w.style.height=st.h+'px';},
       up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);removeEventListener('pointercancel',up);imgSave();};
