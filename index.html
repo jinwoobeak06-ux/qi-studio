@@ -2780,6 +2780,10 @@ function aiRun(text){
   if(/드럼|비트|리듬/.test(t)&&!roles.some(r=>AIDRUM.includes(r)))roles=AIDRUM.concat(roles);
   if(/전부|모두|다 깔|다 만들|다 넣|풀로|전체/.test(t)&&!roles.length)roles=AIALL.slice();
   if(roles.includes('clap')&&roles.includes('snare')&&!/스네어/.test(t))roles=roles.filter(r=>r!=='snare');
+  const pre=[];{const mB=/(\d{2,3})\s*(?:bpm|비피엠)/i.exec(t)||/(?:템포|빠르기|bpm)\D{0,6}(\d{2,3})/i.exec(t),mN=/(\d{1,2})\s*마디/.exec(t),b0=song.bpm,s0=song.scale,n0=curPat().bars;
+    const nb=mB?+mB[1]:/더 빠르게|빠르게 해|템포.{0,4}올|빨리/.test(t)?b0+10:/더 느리게|느리게 해|템포.{0,4}내|천천히/.test(t)?b0-10:b0,ns=/밝게|밝은|장조|신나는 느낌/.test(t)?'major':/어둡게|어두운|단조|무섭게|무거운/.test(t)?'minor':s0,nn=mN?clamp(+mN[1],1,64):n0;
+    if(nb!==b0||ns!==s0||nn!==n0){snap();song.bpm=clamp(nb,40,260);song.scale=ns;curPat().bars=nn;if(nb!==b0)pre.push('빠르기를 '+song.bpm+' BPM으로');if(ns!==s0)pre.push('분위기를 '+SCALES[ns][0]+'로');if(nn!==n0)pre.push('패턴 길이를 '+nn+'마디로');changed(...ALLV);}}
+  if(!roles.length&&pre.length)return {ok:true,msg:pre.join(', ')+' 바꿨어요.'};
   if(!roles.length)return {ok:false,msg:'무엇을 깔지 못 알아들었어요. 이렇게 말해 보세요: "베이스 깔아 줘", "스네어랑 하이햇 넣어 줘", "가락 만들어 줘", "드럼 전부 깔아 줘", "베이스 지워 줘"'};
   const L=aiLook(),pat=L.pat,label=r=>AIWORD.find(w=>w[0]===r)[2];
   if(/지워|빼|없애|삭제/.test(t)){snap();let n=0;const done=[];for(const r of roles)for(const c of (L.by[r]||[])){const k=(pat.notes[c.id]||[]).length;if(k){n+=k;pat.notes[c.id]=[];done.push(c.name);}}
@@ -2794,13 +2798,28 @@ function aiRun(text){
 }
 function openAI(){
   const log=h('div',{class:'ailog'}),inp=h('input',{type:'text',placeholder:'예: 지금 비트에 맞춰 베이스 깔아 줘','aria-label':'AI에게 시킬 말'});
-  const say=(who,msg)=>{log.append(h('p',{class:who},msg));log.scrollTop=log.scrollHeight;};
-  const go=txt=>{const t=(txt||inp.value).trim();if(!t)return;say('me',t);inp.value='';ensureAudio();const r=aiRun(t);if(!r)return;say('ai',r.msg);if(r.ok&&!T.playing){T.mode='pat';uiTransport();play();}};
+  const say=(who,msg)=>{const p=h('p',{class:who},msg);log.append(p);log.scrollTop=log.scrollHeight;return p;};
+  const done=r=>{say('ai',r.msg);if(r.ok&&!T.playing){T.mode='pat';uiTransport();play();}};
+  let busy=false;
+  const viaClaude=async(S,t,img)=>{ // 진짜 Claude에게 맡기기. 안 되면 false
+    const wait=say('ai',img?'사진을 보고 있어요…':'생각하는 중…');busy=true;
+    try{const P=await aiAsk(S,t,img),r=(P.tracks||P.remove||P.bpm||P.bars||P.scale||P.key!=null)?aiApply(P):null;wait.remove();
+      done({ok:!!r,msg:String(P.say||'했어요.')+(r&&r.made.length?' (새 채널: '+r.made.join(', ')+')':'')+(r?' ↶ 로 되돌릴 수 있어요.':'')});return true;}
+    catch(e){wait.remove();if(e&&(e.code==='not_granted'||e.code==='unavailable'))BRAIN=Promise.resolve(null);if(e&&e.code==='rate_limited')say('ai','지금은 Claude가 바빠요. 이번에는 앱 안의 규칙으로 할게요.');return false;}
+    finally{busy=false;}
+  };
+  const go=async txt=>{const t=(txt||inp.value).trim();if(!t||busy)return;say('me',t);inp.value='';ensureAudio();
+    const S=await brain();if(S&&await viaClaude(S,t,null))return;
+    const r=aiRun(t);if(r)done(r);};
+  const photo1=async()=>{if(busy)return;ensureAudio();say('me','사진 보고 만들어 줘');const v=await photoGet();if(!v)return;
+    const S=await brain();let can=false;if(S){try{can=!!(await S.limits()).images;}catch(e){}}
+    if(can){let b=null;try{b=await photoBlob(v);}catch(e){}if(b&&await viaClaude(S,'이 사진을 보고 알아서 전부 만들어 줘.',b))return;}
+    await photoMood(say);if(!can)say('ai','여기서는 사진의 밝기와 색만 읽을 수 있어요. 사진 속 칸을 그대로 옮기려면 아래 "칸 따라 찍기"를 쓰거나, Claude 앱 안에서 연 화면에서 해 보세요. 거기서는 Claude가 사진을 직접 보고 다 해 줘요.');};
   inp.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')go();});
   const chips=h('div',{class:'chips'},['베이스 깔아 줘','스네어 깔아 줘','하이햇 깔아 줘','킥 깔아 줘','클랩 넣어 줘','퍼커션 채워 줘','가락 만들어 줘','화음 깔아 줘','보컬 찹 넣어 줘','필인 넣어 줘','드럼 전부 깔아 줘','베이스 더 복잡하게','하이햇 단순하게','베이스 지워 줘'].map(t=>h('button',{class:'chipb',text:t,onclick:()=>go(t)})));
-  say('ai','지금 열려 있는 패턴("'+curPat().name+'", '+curPat().bars+'마디)을 보고 깔아 드려요. 킥이 치는 자리, 곡의 조성과 빠르기에 맞춰요. 아래 버튼을 누르거나 말로 써 주세요.');
-  const photo=h('div',{class:'acts'},h('button',{text:'사진 분위기로 깔기','data-tip':'띄워 둔 이미지(없으면 고르기)의 밝기와 색을 보고, 그 분위기에 어울리게 드럼·베이스·화음·가락을 깔아요',onclick:()=>{ensureAudio();say('me','사진 분위기로 깔아 줘');photoMood(say);}}),
-    h('button',{text:'사진 속 칸 따라 찍기','data-tip':'다른 프로그램의 칸(스텝) 화면을 찍은 사진에서 켜진 칸을 읽어 그대로 찍어요',onclick:()=>{ensureAudio();say('me','사진 속 칸을 따라 찍어 줘');photoGrid(say);}}));
+  brain().then(S=>say('ai',(S?'Claude가 직접 듣고 만들어요. 무엇이든 말로 시켜 보세요: "더 어둡고 무겁게", "2절 느낌으로 바꿔 줘", "카우벨 가락 넣고 메아리 걸어 줘". ':'')+'지금 열려 있는 패턴("'+curPat().name+'", '+curPat().bars+'마디)에 맞춰 깔아 드려요. 아래 버튼을 누르거나 말로 써 주세요.'));
+  const photo=h('div',{class:'acts'},h('button',{class:'pri',text:'사진 보고 만들기','data-tip':'띄워 둔 이미지(없으면 고르기)를 AI가 보고 알아서 전부 만들어요',onclick:photo1}),
+    h('button',{text:'칸 따라 찍기 (직접 감싸기)','data-tip':'사진에서 칸 부분을 직접 네모로 감싸서 켜진 칸을 그대로 읽어 와요',onclick:()=>{ensureAudio();photoGrid(say);}}));
   const m=sheet('AI 도우미',[log,chips,photo],[inp,h('button',{class:'pri',text:'시키기',onclick:()=>go()})],'narrow ai');
   setTimeout(()=>inp.focus(),50);
 }
@@ -3011,6 +3030,50 @@ async function photoGrid(say){
       for(let r=0;r<st.rows;r++){let c=song.channels[r];if(!c){c=mkCh(defs[r%defs.length]);song.channels.push(c);}const keep=(pat.notes[c.id]||[]).filter(q=>q.s>=st.cols),a=pat.notes[c.id]=keep;for(let k=0;k<st.cols;k++)if(st.on[r][k]){a.push({s:k,l:1,p:60,v:.8});n++;}}
       changed(...ALLV);m.remove();say('ai','사진에서 읽은 '+st.rows+'줄, '+n+'칸을 그대로 찍었어요. 틀린 칸은 채널 랙에서 눌러 고치면 돼요 (↶ 로 되돌릴 수 있어요).');if(!T.playing){T.mode='pat';uiTransport();play();}}})]);
   read();
+}
+/* ───────── AI 두뇌: Claude 앱 안에서 열었을 때는 진짜 Claude가 말과 사진을 이해해서 만든다 ─────────
+   (깃허브 사이트처럼 Claude가 없는 곳에서는 null → 앱 안의 규칙 도우미가 대신한다) */
+let BRAIN=null;
+function brain(){return BRAIN||(BRAIN=(async()=>{try{if(!window.claude||typeof claude.use!=='function')return null;return await claude.use('sample');}catch(e){return null;}})());}
+let AIINST='';
+function aiInstList(){if(AIINST)return AIINST;const by={};for(const d of INST_LIST){if(d.id.includes('~')||d.id.startsWith('smp:')||d.id.startsWith('__'))continue;(by[d.cat]||(by[d.cat]=[])).push(d.id+'='+d.name);}return AIINST=Object.keys(by).map(k=>k+': '+by[k].join(', ')).join('\n');}
+function aiCtx(){
+  const pat=curPat();return {bpm:song.bpm,key:NOTE[song.key],scale:song.scale,pattern:{name:pat.name,bars:pat.bars},
+    channels:song.channels.map(c=>{const d=instOf(c),ns=pat.notes[c.id]||[],o={name:c.name,inst:c.inst.split('~')[0],kind:aiRole(c)};
+      if(d&&d.e==='h'){const bars=[];for(let b=0;b<pat.bars;b++){const a=new Array(16).fill('.');for(const n of ns)if(Math.floor(n.s/16)===b)a[Math.floor(n.s)%16]=n.v>.95?'X':n.v<.5?'o':'x';bars.push(a.join(''));}o.steps=bars;}
+      else o.notes=ns.slice(0,160).map(n=>[n.s,n.l,n.p]);return o;})};
+}
+const AIRULES=`너는 음악 작곡 앱 "qi 스튜디오" 안의 작곡 도우미다. 사용자의 말(한국어)을 듣고 지금 패턴을 고친다.
+반드시 JSON 하나만 답한다(설명·코드블록 금지). 형식:
+{"say":"무엇을 했는지 한국어 한두 문장","bpm":숫자(선택),"key":0~11(선택, 0=C),"scale":"minor|major|phrygian|dorian|harm|mixo|pmin|pmaj|blues"(선택),"bars":1~16(선택, 패턴 길이),
+ "tracks":[{"use":"기존 채널 이름(그 채널에 쓸 때)","name":"새 채널 이름","inst":"악기 id(새 채널일 때)","steps":["16글자","…마디마다"],"notes":[[시작칸,길이칸,미디음,세기0~1,꺾임반음(선택)]],"fx":{"cut":5~100,"fxr":0~100,"fxd":0~100,"fxdrv":0~100,"fxcr":0~100,"fxhp":0~100,"fxch":0~100},"vol":0~1}],
+ "remove":["이 패턴에서 음을 지울 채널 이름"]}
+규칙: 한 마디=16칸, 칸은 0부터, 전체 칸 수=bars×16. 드럼·타악기는 steps(x=보통, X=세게, o=약하게, .=쉼; 마디 수만큼 문자열), 베이스·화음·가락은 notes(미디 60=C4; 베이스 28~48, 화음 48~72, 가락 60~88; 조성 안의 음).
+tracks에 적은 채널은 이 패턴에서 그 채널의 음을 통째로 바꾼다. 안 바꿀 채널은 적지 마라. 기존 비트(특히 킥 자리)에 어울리게 만든다. 펑크·브라질리언 펑크·퐁크를 잘 만든다(탐보르장 리듬, 찌그러진 808, 엇박 보컬 찹).
+fx: cut 낮추면 먹먹, fxr 울림, fxd 메아리, fxdrv 찌그러짐, fxcr 8비트, fxhp 얇게, fxch 넓게. 음악과 상관없는 말이면 say만 답한다.`;
+async function aiAsk(S,text,img){
+  const input=AIRULES+'\n\n쓸 수 있는 악기(id=이름):\n'+aiInstList()+'\n\n지금 곡 상태:\n'+JSON.stringify(aiCtx())+'\n\n'+(img?'첨부한 사진을 봐라. 스텝 시퀀서·채널 랙·피아노 롤·악보 화면이면 사진과 100% 똑같이 옮겨 적어라: 줄 수와 순서, 줄마다의 이름(보이면 그 이름을 name으로, 소리 종류에 맞는 inst), 한 줄의 칸 수(16칸이 넘으면 bars를 늘려라), 켜진 칸의 위치를 한 칸도 빼거나 더하지 말고 그대로. 4칸 묶음 색 차이는 켜짐이 아니다. 칸을 하나씩 세어서 확인한 뒤 적어라. 화면에 BPM이 보이면 bpm도 맞춰라. 피아노 롤이면 음의 시작·길이·높이를 그대로 notes로 옮겨라. 기존 채널은 쓰지 말고 사진의 줄마다 새 채널을 만들되, 확실하지 않은 칸이 있으면 say에 어느 줄인지 적어라. 그 밖의 사진(앨범 표지·풍경 등)이면 그 분위기와 장르에 어울리는 비트를 처음부터 끝까지(드럼·베이스·화음·가락) 만들어라. say에는 사진에서 무엇을 봤는지도 적어라.\n':'')+'사용자: '+text;
+  const r=await S(input,{modelTier:img?'complex':'default',cache:false,images:img?[img]:undefined}),t=(r&&r.text)||'',a=t.indexOf('{'),b=t.lastIndexOf('}');
+  if(a<0||b<=a)return {say:t.trim()||'답을 받지 못했어요.'};try{return JSON.parse(t.slice(a,b+1));}catch(e){return {say:'답을 이해하지 못했어요. 다시 한번 말해 주세요.'};}
+}
+function aiApply(P){
+  const pat=curPat(),num=(v,a,b)=>typeof v==='number'&&isFinite(v)?clamp(v,a,b):null;let n=0;const made=[];
+  snap();let v;if((v=num(P.bpm,40,260))!=null)song.bpm=Math.round(v);if((v=num(P.key,0,11))!=null)song.key=Math.round(v);if(typeof P.scale==='string'&&SCALES[P.scale])song.scale=P.scale;if((v=num(P.bars,1,64))!=null)pat.bars=Math.round(v);
+  const L=pat.bars*16,find=nm=>nm?song.channels.find(c=>c.name===nm)||song.channels.find(c=>c.name.includes(nm)||String(nm).includes(c.name)):null;
+  for(const nm of Array.isArray(P.remove)?P.remove:[]){const c=find(nm);if(c)pat.notes[c.id]=[];}
+  for(const t of Array.isArray(P.tracks)?P.tracks.slice(0,24):[]){if(!t||typeof t!=='object')continue;
+    let c=find(t.use)||find(t.name);const drum=Array.isArray(t.steps);
+    if(!c){const id=typeof t.inst==='string'&&INST[t.inst]?t.inst:drum?'kick':'pluck';c=mkCh(id,{name:String(t.name||t.use||INST[id].name).slice(0,24)});song.channels.push(c);made.push(c.name);}
+    const a=pat.notes[c.id]=[];
+    if(drum)t.steps.slice(0,pat.bars).forEach((str,b)=>{const s=String(str).replace(/\s/g,'');for(let i=0;i<16&&i<s.length;i++)if(s[i]!=='.'&&s[i]!=='-')a.push({s:b*16+i,l:1,p:60,v:s[i]==='X'?1:s[i]==='o'?.45:.8});});
+    if(Array.isArray(t.notes))for(const q of t.notes.slice(0,600)){if(!Array.isArray(q))continue;const s=num(q[0],0,L-.25),l=num(q[1],.25,64),p=num(q[2],LO,HI);if(s==null||p==null)continue;const o={s,l:l||1,p:Math.round(p),v:num(q[3],.1,1)||.8},bd=num(q[4],-24,24);if(bd&&o.l>=1){o.k=Math.max(.5,o.l*.5);o.pts=[[o.l,Math.round(bd)]];}a.push(o);}
+    n+=a.length;if(t.fx&&typeof t.fx==='object')for(const k of ['cut','fxr','fxd','fxdrv','fxcr','fxhp','fxch']){const x=num(t.fx[k],k==='cut'?5:0,100);if(x!=null)c[k]=Math.round(x);}
+    if((v=num(t.vol,0,1))!=null)c.vol=v;}
+  R.sel.clear();changed(...ALLV);return {n,made};
+}
+async function photoBlob(v){ // 보내기 좋게 줄인 JPEG
+  const im=await photoBitmap(v),k=Math.min(1,1400/Math.max(im.naturalWidth,im.naturalHeight)),cv=h('canvas',{width:Math.round(im.naturalWidth*k),height:Math.round(im.naturalHeight*k)});cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
+  return await new Promise(res=>cv.toBlob(res,'image/jpeg',.88));
 }
 boot();
 $('#bAI').onclick=openAI;initParty();initImg();
