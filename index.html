@@ -1151,7 +1151,7 @@ class Engine{
     if(o.pan){const p=c.createStereoPanner();p.pan.value=clamp(o.pan,-1,1);p.connect(S.in);dest=p;}
     const m=midi+ch.oct*12+ch.semi+(ch.fine+ch.pk+(o.fine||0))/100+(60-ch.root)+(hit||ch.mainp===false?0:this.song.mpitch),th=ch.thick/100;
     vel=1-(1-vel)*ch.velsen/100;
-    const x={t,dur,vel,dest,V,relM:Math.pow(4,(ch.rel-50)/50),atk:ch.atk/100*1.2,vib:ch.vib,glide:ch.glide/1000,sgate:ch.sgate,sst:ch.sst||0,sen:ch.sen==null?100:ch.sen,srev:!!ch.srev,path:hit?null:o.path,from:o.from!=null?o.from+(m-midi):null};
+    const x={t,dur,vel,dest,V,relM:Math.pow(4,(ch.rel-50)/50),atk:ch.atk/100*1.2,vib:ch.vib,glide:ch.glide/1000,sgate:ch.sgate,sst:o.sst!=null?o.sst:(ch.sst||0),sen:o.sen!=null?o.sen:(ch.sen==null?100:ch.sen),srev:!!ch.srev,path:hit?null:o.path,from:o.from!=null?o.from+(m-midi):null};
     if(hit){this.vHit(d,m,x);if(d.duck)this.duckAt(t);return V;}
     const n=th<.2?1:th<.65?3:5,offs=n===1?[0]:n===3?[-1,0,1]:[-1,-.5,0,.5,1],sp=th*24;
     for(let i=0;i<n;i++){
@@ -1404,7 +1404,7 @@ function fireAll(eng,evs,timeOf,sd){
   for(const ev of evs){
     const ch=ev.ch,n=ev.n,k=ch.id+'@'+ev.pos;if(k===lk)idx++;else{idx=0;lk=k;}
     let t=timeOf(ev.pos)+idx*ch.strum/1000+ch.shift/100*sd;if(song.swing&&Math.floor(ev.pos)%2===1)t+=song.swing/100*sd*.5*ch.swg/100;
-    const dur=Math.max(.02,n.l*sd*ch.gate/100),pan=(n.pan||0)+(ch.kpan?(n.p-60)/24*ch.kpan/100:0),o={pan,fine:n.f,path:notePath(n,sd*ch.gate/100)},st=eng.last.get(ch.id);
+    const dur=Math.max(.02,n.l*sd*ch.gate/100),pan=(n.pan||0)+(ch.kpan?(n.p-60)/24*ch.kpan/100:0),o={pan,fine:n.f,sst:n.st,sen:n.en,path:notePath(n,sd*ch.gate/100)},st=eng.last.get(ch.id);
     if(ch.glide>0&&st&&t<st.end+.3&&st.m!==n.p)o.from=st.m;
     eng.last.set(ch.id,{m:n.p,end:t+dur});
     eng.play(ch,n.p,t,dur,n.v,o);
@@ -1602,31 +1602,37 @@ function fxBox(ch,d){
 }
 let HEAR=null;
 /* 불러온 소리 파일의 길이 조절: 파형 위에서 쓸 구간(시작~끝)을 정한다 */
+let TRIMSEL={ch:null,n:null};
 function trimBox(ch,d){
+  // 길이 조절 대상: 채널 전체, 또는 이 패턴에 찍힌 음(칸) 하나하나 따로
+  const notes=(curPat().notes[ch.id]||[]).slice().sort((a,b)=>a.s-b.s||a.p-b.p);if(TRIMSEL.ch!==ch.id||!notes.includes(TRIMSEL.n))TRIMSEL={ch:ch.id,n:null};
+  const one=TRIMSEL.n,tg=one?{get sst(){return one.st!=null?one.st:ch.sst;},set sst(v){one.st=v;},get sen(){return one.en!=null?one.en:ch.sen;},set sen(v){one.en=v;}}:ch;
+  const who=h('div',{class:'chips'},h('button',{class:'chipb'+(one?'':' on'),text:'전체','data-tip':'이 채널의 모든 칸에 똑같이 적용해요',onclick:()=>{TRIMSEL.n=null;touch('panel');}}),
+    notes.slice(0,48).map(n=>h('button',{class:'chipb'+(n===one?' on':''),text:'칸 '+(Math.floor(n.s)+1)+(n.p!==60?' '+NOTE[n.p%12]:'')+(n.st!=null||n.en!=null?' •':''),'data-tip':'이 칸만 따로 길이를 정해요 (• 는 따로 정해 둔 칸)',onclick:()=>{TRIMSEL.n=n;touch('panel');}})));
   const cv=h('canvas',{class:'wave',width:560,height:120,'aria-hidden':'true'}),info=h('small'),dur=d.buf.duration;
   const draw=()=>{const g=cv.getContext('2d'),W=cv.width,H=cv.height,D=d.buf.getChannelData(0),n=Math.max(1,Math.floor(D.length/W));g.clearRect(0,0,W,H);
-    const a=ch.sst/100*W,b=ch.sen/100*W;
+    const a=tg.sst/100*W,b=tg.sen/100*W;
     for(let x=0;x<W;x++){let lo=0,hi=0;for(let i=x*n,e=Math.min(D.length,i+n);i<e;i+=Math.max(1,n>>6)){const v=D[i];if(v<lo)lo=v;if(v>hi)hi=v;}g.fillStyle=x>=a&&x<=b?ch.color:'rgba(255,255,255,.2)';g.fillRect(x,H/2-hi*H/2,1,Math.max(1,(hi-lo)*H/2));}
     g.fillStyle='#fff';g.fillRect(a,0,2,H);g.fillRect(Math.min(W-2,b),0,2,H);
-    info.textContent='쓰는 길이 '+(dur*(ch.sen-ch.sst)/100).toFixed(2)+'초 / 전체 '+dur.toFixed(2)+'초';};
+    info.textContent='쓰는 길이 '+(dur*(tg.sen-tg.sst)/100).toFixed(2)+'초 / 전체 '+dur.toFixed(2)+'초';};
   const hb=h('button',{class:'pri','data-tip':'지금 자른 구간을 들려줘요. 소리가 나는 동안에는 다시 틀 수 없고, 정지를 누른 뒤에 다시 틀 수 있어요'});
   const lab=()=>{const on=HEAR&&HEAR.id===ch.id;hb.textContent=on?'■ 정지':'▶ 들어보기';hb.classList.toggle('pri',!on);};
   const stopHear=()=>{if(!HEAR)return;clearTimeout(HEAR.tm);if(AC)vCut(HEAR.V,AC.currentTime);const f=HEAR.done;HEAR=null;f();};
   const hear=()=>{if(HEAR)return;ensureAudio();if(!E)return;
-    const rate=Math.pow(2,(ch.oct*12+ch.semi+ch.fine/100+(ch.mainp===false?0:song.mpitch||0))/12),real=dur*(ch.sen-ch.sst)/100/rate;
-    const V=E.note(ch,ch.root||60,AC.currentTime+.02,Math.min(60,real),.85,{});
+    const rate=Math.pow(2,(ch.oct*12+ch.semi+ch.fine/100+(ch.mainp===false?0:song.mpitch||0))/12),real=dur*(tg.sen-tg.sst)/100/rate;
+    const V=E.note(ch,(ch.root||60)+(one?one.p-60:0),AC.currentTime+.02,Math.min(60,real),.85,{sst:tg.sst,sen:tg.sen});
     HEAR={id:ch.id,V,done:lab,tm:setTimeout(()=>{const f=HEAR&&HEAR.done;HEAR=null;if(f)f();},(real+.15)*1000)};lab();};
   if(HEAR&&HEAR.id===ch.id)HEAR.done=lab;
   hb.onclick=()=>{if(HEAR){if(HEAR.id===ch.id)stopHear();else toast('다른 소리를 듣는 중이에요. 그 소리가 끝나거나 정지한 뒤에 틀 수 있어요');}else hear();};lab();
-  const fix=k=>{if(ch.sen-ch.sst<1){if(k==='sst')ch.sst=ch.sen-1;else ch.sen=ch.sst+1;}};
-  const mk=(label,key,tip)=>{const el=sl(label,ch,key,0,100,.5,v=>(dur*v/100).toFixed(2)+'초',tip),inp=el.querySelector('input');
-    inp.addEventListener('input',()=>{fix(key);if(+inp.value!==ch[key]){inp.value=ch[key];rfill(inp);el.querySelector('output').textContent=(dur*ch[key]/100).toFixed(2)+'초';}draw();});
-    inp.addEventListener('change',()=>{if(!T.playing)hear();});return el;};
-  const bx=h('fieldset',null,h('legend',{text:'소리 길이 (자르기)'}),cv,
+  const fix=k=>{if(tg.sen-tg.sst<1){if(k==='sst')tg.sst=tg.sen-1;else tg.sen=tg.sst+1;}};
+  const mk=(label,key,tip)=>{const el=sl(label,tg,key,0,100,.5,v=>(dur*v/100).toFixed(2)+'초',tip),inp=el.querySelector('input');
+    inp.addEventListener('input',()=>{fix(key);if(+inp.value!==tg[key]){inp.value=tg[key];rfill(inp);el.querySelector('output').textContent=(dur*tg[key]/100).toFixed(2)+'초';}draw();});
+    inp.addEventListener('change',()=>{if(!T.playing)hear();if(one)touch('panel');});return el;};
+  const bx=h('fieldset',null,h('legend',{text:'소리 길이 (자르기)'}),notes.length?who:null,cv,
     mk('시작','sst','시작: 소리 앞부분을 잘라내요. 놓으면 잘린 소리를 들려줘요'),
     mk('끝','sen','끝: 소리 뒷부분을 잘라 짧게 만들어요. 놓으면 잘린 소리를 들려줘요'),
     hb,
-    h('div',{class:'acts'},info,h('button',{text:'처음대로',onclick:()=>{snap();ch.sst=0;ch.sen=100;changed('panel');}})));
+    h('div',{class:'acts'},info,h('button',{text:one?'이 칸은 전체를 따르기':'처음대로',onclick:()=>{snap();if(one){delete one.st;delete one.en;}else{ch.sst=0;ch.sen=100;}changed('panel');}})));
   draw();return bx;
 }
 const pct=v=>Math.round(v)+'%',sgn=v=>(v>0?'+':'')+v;
