@@ -464,6 +464,13 @@ canvas.wave{width:100%;height:60px;border-radius:8px;background:rgba(0,0,0,.42);
 .hummeter{height:12px;border-radius:6px;overflow:hidden;background:rgba(0,0,0,.45);box-shadow:inset 0 2px 4px rgba(0,0,0,.6)}
 .humbar{display:block;height:100%;width:0;background:linear-gradient(90deg,#86c97a,#f0b247);transition:width .05s}
 
+/* 구글 번역: 위쪽 띠·말풍선은 숨기고 고르는 상자만 쓴다 */
+.goog-te-banner-frame,iframe.skiptranslate,#goog-gt-tt,.goog-te-balloon-frame,.VIpgJd-ZVi9od-ORHb-OEVmcd,.VIpgJd-ZVi9od-aZ2wEe-wOHMyf{display:none!important}
+body{top:0!important}
+.goog-text-highlight{background:none!important;box-shadow:none!important}
+.gtslot{min-height:40px}.gtslot select{width:100%;margin:4px 0}.gtslot .goog-te-gadget{color:var(--dim);font-size:11px}.gtslot .goog-te-gadget img{display:inline}
+font{font:inherit;color:inherit}
+
 /* 옆 도구 줄: 누르기 / 붓 */
 #tools{flex:none;display:flex;flex-direction:column;gap:8px;padding:12px 0 12px 12px}
 #tools button{width:40px;height:40px;padding:0;display:grid;place-items:center;color:var(--dim);border-radius:12px}
@@ -476,7 +483,7 @@ canvas.wave{width:100%;height:60px;border-radius:8px;background:rgba(0,0,0,.42);
 <div id="stage" aria-hidden="true"></div><div id="glow" aria-hidden="true"></div>
 <div id="app">
 <header id="top" class="glass">
-  <div class="brand" aria-label="qi 스튜디오"><b id="brandB"><i>q</i><i>i</i></b><span>스튜디오</span></div>
+  <div class="brand notranslate" translate="no" aria-label="qi 스튜디오"><b id="brandB"><i>q</i><i>i</i></b><span>스튜디오</span></div>
   <input id="iName" type="text" aria-label="곡 이름" data-tip="곡 이름 (저장할 때 파일 이름이 돼요)">
   <div class="tport">
     <div class="seg2" id="bMode" role="group" aria-label="재생 방식" data-tip="패턴: 지금 패턴만 되풀이 · 곡: 플레이리스트에 놓은 순서대로 재생"><button data-m="pat">패턴</button><button data-m="song">곡</button></div>
@@ -487,7 +494,7 @@ canvas.wave{width:100%;height:60px;border-radius:8px;background:rgba(0,0,0,.42);
   </div>
   <div class="lcd" data-tip="빠르기(BPM)와 지금 재생 위치. 숫자를 눌러 빠르기를 바꿔요">
     <label class="lcdBpm"><input id="iBpm" type="number" min="40" max="260" step="1" aria-label="빠르기 BPM"><span>BPM</span></label>
-    <span id="posText"></span>
+    <span id="posText" class="notranslate" translate="no"></span>
   </div>
   <div class="grp" id="mKnobs"></div>
   <canvas id="mMeter" width="240" height="24" aria-hidden="true"></canvas>
@@ -497,6 +504,7 @@ canvas.wave{width:100%;height:60px;border-radius:8px;background:rgba(0,0,0,.42);
     <button id="bRedo" class="icb" aria-label="다시 하기" data-tip="다시 하기 (Ctrl+Y)"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 5.5L20 10l-4.5 4.5"/><path d="M19.5 10H10a5.5 5.5 0 0 0 0 11h3"/></svg></button>
     <button id="bFile" data-tip="새 곡 · 장르 틀 · 저장 · 불러오기 · 내보내기">파일</button>
     <button id="bHelp" class="icb" aria-label="길잡이" data-tip="처음 쓰는 사람을 위한 길잡이를 다시 봐요">?</button>
+    <button id="bLang" class="icb notranslate" translate="no" aria-label="언어 Language" data-tip="언어 · Language: 화면의 글자를 다른 나라 말로 번역해요 (영어·러시아어·일본어 등 모든 언어)"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 3.9 5.2 3.9 8.5s-1.3 6.1-3.9 8.5M12 3.5C9.400 5.900 8.100 8.700 8.100 12s1.300 6.100 3.900 8.500"/></svg></button>
     <button id="bImg" class="icb tog" aria-label="옆에 이미지 띄우기" data-tip="옆에 이미지 띄우기: 참고 그림이나 앨범 표지를 화면 옆에 띄워 두고 작업해요. 다시 누르면 숨겨요"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17l5-4.5 3.5 3 3-2.5 4 3.5"/></svg></button>
     <button id="bParty" data-tip="파티: 코드로 친구와 모여서 같은 곡을 동시에 함께 만들어요">파티</button>
     <button id="bAI" data-tip="AI 도우미: '지금 비트에 맞춰 베이스 깔아 줘'처럼 말로 시키면 지금 패턴에 맞춰 깔아 줘요">AI</button>
@@ -1563,7 +1571,7 @@ function fader(o){
   draw();return el;
 }
 function sl(label,obj,key,min,max,step,fmt,tip,views){
-  const inp=h('input',{type:'range',min,max,step,'aria-label':label}),out=h('output');inp.value=obj[key];rfill(inp);out.textContent=fmt(obj[key]);
+  const inp=h('input',{type:'range',min,max,step,'aria-label':label}),out=h('output',{class:'notranslate',translate:'no'});inp.value=obj[key];rfill(inp);out.textContent=fmt(obj[key]);
   inp.addEventListener('pointerdown',snap);inp.addEventListener('keydown',snap);
   inp.addEventListener('input',()=>{obj[key]=+inp.value;out.textContent=fmt(obj[key]);changed(...(views||[]));});
   return h('label',{class:'sl','data-tip':tip},h('span',{text:label}),inp,out);
@@ -2971,7 +2979,7 @@ function openParty(pre){
     if(PT.peer&&PT.base){
       const link=location.origin+location.pathname+'#party='+PT.code,copy=(t,what)=>{const ok=()=>toast(what+' 복사했어요');if(navigator.clipboard)navigator.clipboard.writeText(t).then(ok,()=>prompt('복사해서 보내 주세요',t));else prompt('복사해서 보내 주세요',t);};
       body.append(h('p',{class:'routed',text:PT.host?'내가 연 파티예요. 내가 화면을 닫으면 파티가 끝나요.':'파티에 들어와 있어요.'}),
-        h('div',{class:'pcode',text:PT.code}),
+        h('div',{class:'pcode notranslate',translate:'no',text:PT.code}),
         h('div',{class:'acts'},h('button',{class:'pri',text:'코드 복사',onclick:()=>copy(PT.code,'코드를')}),h('button',{text:'초대 링크 복사',onclick:()=>copy(link,'초대 링크를')})),
         h('fieldset',null,h('legend',{text:'지금 함께하는 사람 '+Math.max(1,PT.who.length)+'명'}),h('div',{class:'chips'},(PT.who.length?PT.who:['나']).map(n=>h('span',{class:'chipb',text:n})))),
         h('div',{class:'prow'},h('span',{text:'내 이름'}),nick),
@@ -3208,7 +3216,32 @@ function openHum(){
     [fin,fileB,recB],'narrow');
   const ob=new MutationObserver(()=>{if(!m.isConnected){ob.disconnect();if(HUM.rec){HUM.rec.onstop=null;try{HUM.rec.stop();}catch(e){}}stopMic();}});ob.observe(document.body,{childList:true});
 }
+/* ───────── 언어(번역): 구글 번역 위젯으로 화면의 글자를 고른 나라 말로 바꾼다 (인터넷이 되는 사이트에서만) ───────── */
+const LG={ready:null,quick:[['en','English'],['ru','Русский'],['ja','日本語'],['zh-CN','中文'],['es','Español'],['fr','Français'],['de','Deutsch'],['pt','Português'],['vi','Tiếng Việt'],['id','Indonesia'],['th','ไทย'],['ar','العربية'],['hi','हिन्दी']]};
+function lgLoad(){
+  return LG.ready||(LG.ready=new Promise((res,rej)=>{
+    if(!LG.box){LG.box=h('div',{id:'gtBox'});$('#gtHold').append(LG.box);}
+    window.__gtInit=()=>{try{new google.translate.TranslateElement({pageLanguage:'ko',autoDisplay:false},'gtBox');res();}catch(e){rej(e);}};
+    const s=document.createElement('script');s.src='https://translate.google.com/translate_a/element.js?cb=__gtInit';s.onerror=()=>rej(new Error('load'));document.head.append(s);setTimeout(()=>rej(new Error('timeout')),9000);
+  }).catch(e=>{LG.ready=null;throw e;}));
+}
+async function lgSet(code){ // 위젯의 언어 고르기 상자가 채워질 때까지 잠깐 기다렸다가 고른다
+  for(let i=0;i<40;i++){const c=document.querySelector('select.goog-te-combo');if(c&&[...c.options].some(o=>o.value===code)){c.value=code;c.dispatchEvent(new Event('change'));return true;}await new Promise(r=>setTimeout(r,150));}
+  return false;
+}
+function lgKorean(){const host=location.hostname,past='=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';document.cookie='googtrans'+past;document.cookie='googtrans'+past+'; domain='+host;document.cookie='googtrans'+past+'; domain=.'+host;location.reload();}
+function openLang(){
+  const info=h('p',{class:'routed notranslate',translate:'no',text:'번역을 불러오는 중… / Loading translator…'}),slot=h('div',{class:'gtslot'}),
+    quick=h('div',{class:'chips notranslate',translate:'no'},LG.quick.map(([c,n])=>h('button',{class:'chipb',text:n,onclick:async()=>{info.textContent='…';try{await lgLoad();info.textContent=(await lgSet(c))?n+' ✓':'이 언어는 지금 고를 수 없어요.';}catch(e){fail();}}})));
+  const fail=()=>{info.textContent=/claude|anthropic/.test(location.hostname)?'Claude 안에서 연 화면에서는 번역을 불러올 수 없어요. 깃허브 링크로 연 사이트에서 써 주세요. (Translation works on the GitHub site only.)':'번역을 불러오지 못했어요. 인터넷을 확인해 주세요. (Could not load the translator.)';};
+  const m=sheet('언어 · Language',[info,quick,h('small',{class:'notranslate',translate:'no',text:'아래 상자에서 세계 모든 언어를 고를 수 있어요 · All languages:'}),slot],
+    [h('small',{style:'margin-right:auto',text:'구글 번역이 자동으로 옮긴 글이라 어색한 말이 있을 수 있어요.'}),h('button',{class:'notranslate',translate:'no',text:'한국어로 돌아가기',onclick:lgKorean})],'narrow');
+  if(LG.box)slot.append(LG.box);
+  lgLoad().then(()=>{if(m.isConnected)slot.append(LG.box);info.textContent='언어를 고르세요 · Choose a language';},fail);
+  const ob=new MutationObserver(()=>{if(!m.isConnected){ob.disconnect();if(LG.box)$('#gtHold').append(LG.box);}});ob.observe(document.body,{childList:true});
+}
+function initLang(){document.body.append(h('div',{id:'gtHold',hidden:''}));$('#bLang').onclick=openLang;if(/googtrans=\/ko\/(?!ko)/.test(document.cookie))lgLoad().catch(()=>{});}
 boot();
-$('#bAI').onclick=openAI;$('#rHum').onclick=openHum;$('#bHum').onclick=openHum;initParty();initImg();
+$('#bAI').onclick=openAI;$('#rHum').onclick=openHum;$('#bHum').onclick=openHum;initLang();initParty();initImg();
 </script>
 </body></html>
