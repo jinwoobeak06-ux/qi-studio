@@ -554,6 +554,7 @@ canvas.wave{width:100%;height:60px;border-radius:8px;background:rgba(0,0,0,.42);
         <button data-tool="draw" data-tip="그리기: 빈 곳을 누르면 음이 생기고, 옆으로 끌면 길어져요. 음의 앞쪽 끝이나 뒤쪽 끝을 잡고 끌면 그쪽에서 줄이고 늘려요. 음 끝을 잡고 Shift를 누른 채 위나 아래로 끌면 그 뒤로 이어서 꺾여요">그리기</button>
         <button data-tool="erase" data-tip="지우기: 음을 누르거나 문지르면 지워져요 (마우스 오른쪽 버튼도 같아요)">지우기</button>
         <button data-tool="select" data-tip="선택: 끌어서 여러 음을 고른 뒤 옮기거나 지워요">선택</button>
+        <button data-tool="cut" data-tip="자르기: 음을 누르면 누른 자리에서 둘로 잘라요. 자른 뒤 한쪽만 지우거나 옮길 수 있어요">자르기</button>
         <button data-tool="bend" data-tip="꺾기: 음을 누른 채 오른쪽으로 끌면 그 뒤로 이어서 위나 아래로 비스듬히 꺾여요. 또 끌면 계속 이어져서 올라갔다 내려갔다 할 수 있어요. 그냥 누르면 마지막 꺾임이 지워져요">꺾기</button>
         <button data-tool="hand" data-tip="이동: 터치 화면에서 화면을 밀어 움직여요">이동</button>
       </div>
@@ -2149,6 +2150,12 @@ function initRoll(){
     const n=hitNote(q);
     if(R.tool==='erase'||e.button===2){snap();R.drag={k:'erase'};if(n){removeNote(n);changed('roll','rack');}return;}
     if(R.tool==='hand')return;
+    if(R.tool==='cut'){
+      if(!n){toast('자를 음을 눌러 주세요');return;}
+      const g=Math.min(R.snap,1)||.25,off=clamp(rd(q.step-n.s,g),g,n.l-g);if(n.l<2*g-1e-6||off<=0||off>=n.l){toast('이 음은 더 자를 수 없어요 (칸 크기를 더 잘게 바꿔 보세요)');return;}
+      if(bentOf(n)&&off>n.k-1e-6){toast('꺾인 부분은 자를 수 없어요. 평평한 부분을 잘라 주세요');return;}
+      snap();const b2=Object.assign({},n,{s:n.s+off,l:n.l-off});if(n.pts){b2.k=n.k-off;b2.pts=n.pts.map(a=>[a[0]-off,a[1]]);delete n.k;delete n.pts;}n.l=off;
+      rollNotes().push(b2);R.sel.clear();R.sel.add(b2);changed('roll','rack');return;}
     if(R.tool==='bend'){
       if(!n){toast('꺾을 음을 누른 채 오른쪽으로 끌어 주세요');return;}
       if((instOf(ch)||{}).e==='h'){toast('드럼 소리는 꺾을 수 없어요');return;}
@@ -2170,7 +2177,7 @@ function initRoll(){
   });
   rollCv.addEventListener('pointermove',e=>{
     const D=R.drag,q=rollPt(e);
-    if(!D){if(e.pointerType==='mouse'){const n=q.px>=KEYW&&q.py>=RUL?hitNote(q):null;rollCv.style.cursor=R.tool==='erase'||R.tool==='bend'?'crosshair':n?((n.s+n.l-q.step)*R.zoom<Math.min(8,n.l*R.zoom*.35)||(q.step-n.s)*R.zoom<Math.min(8,n.l*R.zoom*.3)?'ew-resize':'move'):'default';}return;}
+    if(!D){if(e.pointerType==='mouse'){const n=q.px>=KEYW&&q.py>=RUL?hitNote(q):null;rollCv.style.cursor=R.tool==='cut'?(n?'col-resize':'default'):R.tool==='erase'||R.tool==='bend'?'crosshair':n?((n.s+n.l-q.step)*R.zoom<Math.min(8,n.l*R.zoom*.35)||(q.step-n.s)*R.zoom<Math.min(8,n.l*R.zoom*.3)?'ew-resize':'move'):'default';}return;}
     if(D.k==='key'){const p=clamp(q.pitch,LO,HI);if(p!==D.p){liveOff(D.V);D.p=p;D.V=liveOn(p);drawRoll();}}
     else if(D.k==='erase'){const n=q.px>=KEYW?hitNote(q):null;if(n){removeNote(n);changed('roll','rack');}}
     else if(D.k==='band'){D.x1=q.step;D.p1=q.pitch;drawRoll();}
