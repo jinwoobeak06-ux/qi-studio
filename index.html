@@ -3052,7 +3052,28 @@ const IMG={win:null,url:'',st:{x:null,y:120,w:280,h:280}};
 function imgSave(){try{localStorage.setItem('kungjjak.imgwin',JSON.stringify(IMG.st));}catch(e){}}
 function imgPick(){const f=h('input',{type:'file',accept:'image/*'});f.onchange=()=>{const file=f.files[0];if(!file)return;if(file.size>2e7){toast('이미지가 너무 커요 (20MB까지)');return;}
   file.arrayBuffer().then(b=>{const v={name:file.name,type:file.type||'image/png',u8:new Uint8Array(b)};idbPut('__sideimg',v);IMG.st.hidden=false;imgShow(v);toast('이미지를 띄웠어요. 위쪽 띠를 잡고 옮기고, + − 버튼이나 오른쪽 아래 모서리로 크기를 바꿔요');});};f.click();}
+function imgLoad(v){return new Promise((res,rej)=>{const im=new Image(),u=URL.createObjectURL(new Blob([v.u8],{type:v.type}));im.onload=()=>{res(im);setTimeout(()=>URL.revokeObjectURL(u),2000);};im.onerror=rej;im.src=u;});}
+async function imgBake(make){ // 사진 자체를 고쳐서(돌리기·자르기) 다시 저장한다
+  const v=IMG.v;if(!v)return;const im=await imgLoad(v),cv=make(im);if(!cv)return;const blob=await new Promise(r=>cv.toBlob(r,'image/png'));if(!blob)return;
+  const nv={name:v.name,type:'image/png',u8:new Uint8Array(await blob.arrayBuffer())};idbPut('__sideimg',nv);imgShow(nv);
+}
+function imgTurn(dir){const st=IMG.st;imgBake(im=>{const k=Math.min(1,3000/Math.max(im.naturalWidth,im.naturalHeight)),w=Math.round(im.naturalWidth*k),hh=Math.round(im.naturalHeight*k),cv=h('canvas',{width:hh,height:w}),g=cv.getContext('2d');
+  g.translate(hh/2,w/2);g.rotate(dir*Math.PI/2);g.drawImage(im,-w/2,-hh/2,w,hh);st.full=null;[st.w,st.h]=[st.h,st.w];return cv;});}
+function imgFlip(){imgBake(im=>{const k=Math.min(1,3000/Math.max(im.naturalWidth,im.naturalHeight)),w=Math.round(im.naturalWidth*k),hh=Math.round(im.naturalHeight*k),cv=h('canvas',{width:w,height:hh}),g=cv.getContext('2d');g.translate(w,0);g.scale(-1,1);g.drawImage(im,0,0,w,hh);return cv;});}
+async function imgCrop(){
+  const v=IMG.v;if(!v)return;const im=await imgLoad(v),W=Math.min(680,im.naturalWidth),H=Math.round(im.naturalHeight*W/im.naturalWidth),cv=h('canvas',{width:W,height:H,style:'width:100%;max-height:60vh;object-fit:contain;border-radius:10px;touch-action:none;cursor:crosshair'}),g=cv.getContext('2d'),r={x0:W*.1,y0:H*.1,x1:W*.9,y1:H*.9},info=h('small');
+  const draw=()=>{const x0=Math.min(r.x0,r.x1),x1=Math.max(r.x0,r.x1),y0=Math.min(r.y0,r.y1),y1=Math.max(r.y0,r.y1);g.drawImage(im,0,0,W,H);g.fillStyle='rgba(0,0,0,.55)';g.fillRect(0,0,W,y0);g.fillRect(0,y1,W,H-y1);g.fillRect(0,y0,x0,y1-y0);g.fillRect(x1,y0,W-x1,y1-y0);g.strokeStyle='#f0b247';g.lineWidth=2;g.strokeRect(x0,y0,x1-x0,y1-y0);
+    info.textContent='남길 부분: '+Math.round((x1-x0)/W*im.naturalWidth)+' × '+Math.round((y1-y0)/H*im.naturalHeight);};
+  const pt=e=>{const b=cv.getBoundingClientRect();return [clamp((e.clientX-b.left)/b.width*W,0,W),clamp((e.clientY-b.top)/b.height*H,0,H)];};
+  cv.addEventListener('pointerdown',e=>{e.preventDefault();cv.setPointerCapture(e.pointerId);[r.x0,r.y0]=pt(e);r.x1=r.x0;r.y1=r.y0;const mv=ev=>{[r.x1,r.y1]=pt(ev);draw();},up=()=>{cv.removeEventListener('pointermove',mv);cv.removeEventListener('pointerup',up);};cv.addEventListener('pointermove',mv);cv.addEventListener('pointerup',up);});
+  const m=sheet('사진 자르기',[h('p',{class:'routed',text:'남기고 싶은 부분을 네모로 끌어서 감싸 주세요. 다시 끌면 새로 잡혀요.'}),cv,info],[h('button',{text:'취소',onclick:()=>m.remove()}),h('button',{class:'pri',text:'이대로 자르기',onclick:()=>{
+    const fx=Math.min(r.x0,r.x1)/W,fy=Math.min(r.y0,r.y1)/H,fw=Math.abs(r.x1-r.x0)/W,fh=Math.abs(r.y1-r.y0)/H;if(fw<.02||fh<.02){toast('너무 작아요. 남길 부분을 더 크게 잡아 주세요');return;}
+    m.remove();const st=IMG.st;imgBake(img=>{const sw=Math.round(fw*img.naturalWidth),sh=Math.round(fh*img.naturalHeight),c2=h('canvas',{width:sw,height:sh});c2.getContext('2d').drawImage(img,Math.round(fx*img.naturalWidth),Math.round(fy*img.naturalHeight),sw,sh,0,0,sw,sh);
+      st.full=null;st.h=clamp(Math.round(st.w*sh/sw)+40,100,innerHeight);return c2;});toast('사진을 잘랐어요');}})]);
+  draw();
+}
 function imgShow(v){
+  IMG.v=v;
   if(IMG.win)IMG.win.remove();if(IMG.url)URL.revokeObjectURL(IMG.url);
   IMG.url=URL.createObjectURL(new Blob([v.u8],{type:v.type}));const st=IMG.st,W=innerWidth,H=innerHeight;
   st.w=clamp(st.w||280,120,W);st.h=clamp(st.h||280,100,H);if(st.x==null)st.x=W-st.w-24;st.x=clamp(st.x,0,W-60);st.y=clamp(st.y,0,H-40);
@@ -3061,6 +3082,10 @@ function imgShow(v){
     h('span',{class:'isz'},h('small',{text:'세로'}),h('button',{class:'icb','aria-label':'세로 줄이기',text:'−','data-tip':'세로를 줄여요',onclick:()=>size(1,1/1.25)}),h('button',{class:'icb','aria-label':'세로 늘리기',text:'+','data-tip':'세로를 늘려요',onclick:()=>size(1,1.25)})),
     h('span',{class:'isz'},h('small',{text:'전체'}),h('button',{class:'icb','aria-label':'작게',text:'−','data-tip':'가로·세로를 함께 줄여요',onclick:()=>size(1/1.25,1/1.25)}),h('button',{class:'icb','aria-label':'크게',text:'+','data-tip':'가로·세로를 함께 늘려요',onclick:()=>size(1.25,1.25)})),
     h('button',{class:'icb','aria-label':'화면 가득',text:'⛶','data-tip':'화면에 가득 차게 / 원래 크기로',onclick:()=>{if(st.full){Object.assign(st,st.full);st.full=null;}else{st.full={x:st.x,y:st.y,w:st.w,h:st.h};st.x=8;st.y=8;st.w=innerWidth-16;st.h=innerHeight-16;}put();}}),
+    h('button',{class:'icb','aria-label':'왼쪽으로 돌리기',text:'↺','data-tip':'사진을 왼쪽으로 90도 돌려요',onclick:()=>imgTurn(-1)}),
+    h('button',{class:'icb','aria-label':'오른쪽으로 돌리기',text:'↻','data-tip':'사진을 오른쪽으로 90도 돌려요',onclick:()=>imgTurn(1)}),
+    h('button',{class:'icb','aria-label':'좌우 뒤집기',text:'⇋','data-tip':'사진을 좌우로 뒤집어요',onclick:imgFlip}),
+    h('button',{class:'icb',text:'자르기',style:'width:auto;padding:0 8px','data-tip':'사진에서 남길 부분만 네모로 골라 잘라요',onclick:imgCrop}),
     h('button',{class:'icb'+(st.keep?' on':''),text:'비율','data-tip':'켜면 사진의 원래 비율을 지켜요. 끄면 창 크기에 맞춰 가로·세로가 따로 늘어나요',style:'width:auto;padding:0 8px',onclick:e=>{st.keep=!st.keep;w.classList.toggle('keep',!!st.keep);e.currentTarget.classList.toggle('on',!!st.keep);imgSave();}}),
     h('button',{class:'icb',text:'바꾸기',style:'width:auto;padding:0 10px','data-tip':'다른 이미지로 바꿔요',onclick:imgPick}),
     h('button',{class:'icb danger',text:'지우기',style:'width:auto;padding:0 10px','data-tip':'이 사진을 지워요 (창도 닫혀요)',onclick:()=>{idbPut('__sideimg',null);IMG.win.remove();IMG.win=null;toast('이미지를 지웠어요');imgBtn();}}),
