@@ -585,6 +585,8 @@ font{font:inherit;color:inherit}
       <button id="rSelAll" data-tip="음을 전부 골라요 (Ctrl+A). '다른 악기 같이 보기'가 켜져 있으면 모든 악기의 음을 한 번에 골라요. 고른 뒤 끌어 옮기거나 지워요">전체 선택</button>
       <button id="rClear" class="danger" data-tip="이 채널의 음을 이 패턴에서 전부 지워요. 음을 골랐을 때는 고른 것만 지워요">모두 지우기</button>
       <button id="rHum" data-tip="녹음해서 음 만들기: 목소리로 가락을 부르면 그 음 높이와 길이대로 음을 찍어 줘요">🎤 녹음해서 음 만들기</button>
+      <button id="rFlipH" data-tip="좌우 반전: 고른 음들을 거울에 비친 것처럼 좌우로 뒤집어요 (고른 게 없으면 이 채널 전부)">⇋ 좌우 반전</button>
+      <button id="rFlipV" data-tip="위아래 반전: 고른 음들의 높은 음과 낮은 음을 뒤집어요 (고른 게 없으면 이 채널 전부)">⇅ 위아래 반전</button>
       <button id="rMenu" data-tip="박자 맞추기 · 옥타브 옮기기 · 펼치기 · 복사">도구</button>
       <label class="fld" data-tip="아래 칸에서 음마다 조절할 값">음마다<select id="rLane"><option value="v">세기</option><option value="pan">좌우(팬)</option><option value="f">미세 피치</option></select></label>
     </div>
@@ -2170,7 +2172,7 @@ function initRoll(){
   $('#rLock').onclick=()=>{R.lock=!R.lock;touch('roll');};$('#rGhost').onclick=()=>{R.ghost=!R.ghost;touch('roll');};
   $('#rZoom').addEventListener('input',e=>{R.zoom=+e.target.value;sizeRoll();drawRoll();drawLane();});
   $('#rLane').onchange=e=>{R.lane=e.target.value;drawLane();};
-  $('#rMenu').onclick=e=>menu(e.currentTarget,['자동으로 만들기 (이 채널, 이 패턴)',['화음 진행 넣기',()=>autoPart('chord')],['가락 만들기',()=>autoPart('melody')],['베이스 줄 만들기',()=>autoPart('bass')],'-','고른 음에 적용 (고른 게 없으면 전부)',['꺾임 없애기 (곧게 펴기)',()=>rollTool('unbend')],['박자 맞추기 (퀀타이즈)',()=>rollTool('quant')],['반음 올리기',()=>rollTool('up1')],['반음 내리기',()=>rollTool('dn1')],['옥타브 올리기',()=>rollTool('up12')],['옥타브 내리기',()=>rollTool('dn12')],['길이 2배',()=>rollTool('x2')],['길이 절반',()=>rollTool('d2')],['화음을 차례로 펼치기 (아르페지오)',()=>rollTool('arp')],['세기 살짝 흩뜨리기 (사람 느낌)',()=>rollTool('human')],'-',['전부 고르기 (Ctrl+A)',()=>{R.sel=new Set(rollNotes());touch('roll');}],['복사 (Ctrl+C)',rollCopy],['붙여넣기 (Ctrl+V)',rollPaste],['바로 뒤에 복제 (Ctrl+D)',rollDup],['지우기 (Delete)',()=>rollTool('del')]]);
+  $('#rMenu').onclick=e=>menu(e.currentTarget,['자동으로 만들기 (이 채널, 이 패턴)',['화음 진행 넣기',()=>autoPart('chord')],['가락 만들기',()=>autoPart('melody')],['베이스 줄 만들기',()=>autoPart('bass')],'-','고른 음에 적용 (고른 게 없으면 전부)',['좌우 반전 (거울처럼 뒤집기)',()=>rollTool('fliph')],['위아래 반전 (높낮이 뒤집기)',()=>rollTool('flipv')],['꺾임 없애기 (곧게 펴기)',()=>rollTool('unbend')],['박자 맞추기 (퀀타이즈)',()=>rollTool('quant')],['반음 올리기',()=>rollTool('up1')],['반음 내리기',()=>rollTool('dn1')],['옥타브 올리기',()=>rollTool('up12')],['옥타브 내리기',()=>rollTool('dn12')],['길이 2배',()=>rollTool('x2')],['길이 절반',()=>rollTool('d2')],['화음을 차례로 펼치기 (아르페지오)',()=>rollTool('arp')],['세기 살짝 흩뜨리기 (사람 느낌)',()=>rollTool('human')],'-',['전부 고르기 (Ctrl+A)',()=>{R.sel=new Set(rollNotes());touch('roll');}],['복사 (Ctrl+C)',rollCopy],['붙여넣기 (Ctrl+V)',rollPaste],['바로 뒤에 복제 (Ctrl+D)',rollDup],['지우기 (Delete)',()=>rollTool('del')]]);
   rollSc.addEventListener('scroll',()=>{drawRoll();drawLane();},{passive:true});
   new ResizeObserver(()=>{sizeRoll();drawRoll();drawLane();}).observe(rollSc);
   rollCv.addEventListener('contextmenu',e=>e.preventDefault());
@@ -2255,7 +2257,7 @@ function initRoll(){
     const D=R.drag;if(!D)return;R.drag=null;
     if(D.k==='key'){liveOff(D.V);drawRoll();}
     else if(D.k==='band'){const a=Math.min(D.x0,D.x1),b=Math.max(D.x0,D.x1),lo=Math.min(D.p0,D.p1),hi=Math.max(D.p0,D.p1);for(const n of pickNotes())if(n.s<b&&n.s+n.l>a&&n.p>=lo&&n.p<=hi)R.sel.add(n);touch('roll');
-      if(R.sel.size&&e&&e.clientX!=null&&(Math.abs(e.clientX-D.cx)>6||Math.abs(e.clientY-D.cy)>6)){const x=e.clientX,y=e.clientY;menu({getBoundingClientRect:()=>({left:x,right:x,top:y,bottom:y})},['고른 음 '+R.sel.size+'개',['지우기 (Delete)',()=>rollTool('del')],['복사 (Ctrl+C)',rollCopy],['바로 뒤에 복제 (Ctrl+D)',rollDup],['한 옥타브 올리기',()=>rollTool('up12')],['한 옥타브 내리기',()=>rollTool('dn12')],['고르기 풀기',()=>{R.sel.clear();touch('roll');}]]);}}
+      if(R.sel.size&&e&&e.clientX!=null&&(Math.abs(e.clientX-D.cx)>6||Math.abs(e.clientY-D.cy)>6)){const x=e.clientX,y=e.clientY;menu({getBoundingClientRect:()=>({left:x,right:x,top:y,bottom:y})},['고른 음 '+R.sel.size+'개',['지우기 (Delete)',()=>rollTool('del')],['복사 (Ctrl+C)',rollCopy],['바로 뒤에 복제 (Ctrl+D)',rollDup],['좌우 반전',()=>rollTool('fliph')],['위아래 반전',()=>rollTool('flipv')],['한 옥타브 올리기',()=>rollTool('up12')],['한 옥타브 내리기',()=>rollTool('dn12')],['고르기 풀기',()=>{R.sel.clear();touch('roll');}]]);}}
     else if(D.k==='brush'){if(!D.erase)growPat(D.mx);changed('roll','rack');if(D.n>1)toast(D.erase?D.n+'개 음을 지웠어요':D.n+'개 음을 찍었어요');}
     else if(D.k==='bend'){const n=D.n;
       if(D.moved){ensureAudio();if(!T.playing)E.note(selCh(),n.p,AC.currentTime+.01,Math.min(4,n.l*stepDur()),n.v||.8,{path:notePath(n,stepDur())});}
@@ -2284,6 +2286,8 @@ function rollTool(k){
   snap();const s=R.snap;
   switch(k){
     case 'quant':{const q=Math.max(s,.25);for(const n of tg){n.s=Math.max(0,rd(n.s,q));if(!bentOf(n))n.l=Math.max(q,rd(n.l,q));}break;}
+    case 'fliph':{let a=1e9,b=-1e9;for(const n of tg){a=Math.min(a,n.s);b=Math.max(b,n.s+n.l);}for(const n of tg)n.s=a+(b-(n.s+n.l));break;} // 좌우 반전: 맨 앞과 맨 뒤가 바뀐다
+    case 'flipv':{let lo=999,hi=-999;for(const n of tg){lo=Math.min(lo,n.p);hi=Math.max(hi,n.p);}for(const n of tg){n.p=clamp(lo+hi-n.p,LO,HI);if(bentOf(n))n.pts=n.pts.map(q=>[q[0],-q[1]]);}break;} // 위아래 반전: 높은 음과 낮은 음이 바뀐다
     case 'unbend':for(const n of tg)if(bentOf(n)){n.l=n.k;delete n.k;delete n.pts;}break;
     case 'up1':case 'dn1':case 'up12':case 'dn12':{const d=k==='up1'?1:k==='dn1'?-1:k==='up12'?12:-12;for(const n of tg)n.p=clamp(n.p+d,LO,HI);previewNote(tg[0].p);break;}
     case 'x2':for(const n of tg)scaleNote(n,2);break;
@@ -3297,6 +3301,6 @@ function openLang(){
 }
 function initLang(){document.body.append(h('div',{id:'gtHold',hidden:''}));$('#bLang').onclick=openLang;if(/googtrans=\/ko\/(?!ko)/.test(document.cookie))lgLoad().catch(()=>{});}
 boot();
-$('#bAI').onclick=openAI;$('#rHum').onclick=openHum;$('#bHum').onclick=openHum;initLang();initParty();initImg();
+$('#bAI').onclick=openAI;$('#rHum').onclick=openHum;$('#bHum').onclick=openHum;$('#rFlipH').onclick=()=>rollTool('fliph');$('#rFlipV').onclick=()=>rollTool('flipv');initLang();initParty();initImg();
 </script>
 </body></html>
